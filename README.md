@@ -108,15 +108,15 @@ Why this project matters: it's lightweight, open-source (MIT), and designed to r
 
 ## Screenshots / Demo
 
-> Screenshots coming soon! We'd love your help adding them.
+> Screenshots: See a preview of the app before installing...
 
 | Onboarding | Home / Library | Gallery | Preview |
 |---|---|---|---|
-| *(add screenshot)* | *(add screenshot)* | *(add screenshot)* | *(add screenshot)* |
+| <img src="fastlane/metadata/android/en-US/images/1.png"> | <img src="fastlane/metadata/android/en-US/images/2.png"> | <img src="fastlane/metadata/android/en-US/images/3.png"> | <img src="fastlane/metadata/android/en-US/images/4.png"> |
 
 | Large Files | Search | Browse | Settings |
 |---|---|---|---|
-| *(add screenshot)* | *(add screenshot)* | *(add screenshot)* | *(add screenshot)* |
+| <img src="fastlane/metadata/android/en-US/images/5.png"> |<img src="fastlane/metadata/android/en-US/images/6.png"> | <img src="fastlane/metadata/android/en-US/images/7.png"> | <img src="fastlane/metadata/android/en-US/images/8.png"> |
 
 **Demo video:** coming soon
 
