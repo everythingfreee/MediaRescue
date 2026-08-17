@@ -45,6 +45,7 @@ class GalleryState {
   final GalleryFilter filter;
   final GalleryViewMode viewMode;
   final GallerySort sort;
+  final String searchQuery;
   final Set<String> selectedPaths;
 
   const GalleryState({
@@ -56,6 +57,7 @@ class GalleryState {
     this.filter = GalleryFilter.all,
     this.viewMode = GalleryViewMode.grid,
     this.sort = GallerySort.nameAsc,
+    this.searchQuery = '',
     this.selectedPaths = const {},
   });
 
@@ -68,6 +70,7 @@ class GalleryState {
     GalleryFilter? filter,
     GalleryViewMode? viewMode,
     GallerySort? sort,
+    String? searchQuery,
     Set<String>? selectedPaths,
   }) {
     return GalleryState(
@@ -79,11 +82,12 @@ class GalleryState {
       filter: filter ?? this.filter,
       viewMode: viewMode ?? this.viewMode,
       sort: sort ?? this.sort,
+      searchQuery: searchQuery ?? this.searchQuery,
       selectedPaths: selectedPaths ?? this.selectedPaths,
     );
   }
 
-  /// Files filtered by the current [filter] and sorted by [sort].
+  /// Files filtered by the current [filter], [searchQuery] and sorted by [sort].
   List<FileItem> get filteredFiles {
     List<FileItem> result;
     switch (filter) {
@@ -116,6 +120,12 @@ class GalleryState {
                 !f.isText)
             .toList();
         break;
+    }
+
+    // Apply search query
+    if (searchQuery.isNotEmpty) {
+      final query = searchQuery.toLowerCase().trim();
+      result = result.where((f) => f.name.toLowerCase().contains(query)).toList();
     }
 
     // Apply sort
@@ -174,6 +184,7 @@ class GalleryNotifier extends Notifier<GalleryState> {
       selectedFolderName: name,
       isLoading: true,
       error: null,
+      searchQuery: '',
       selectedPaths: const {},
     );
 
@@ -204,6 +215,11 @@ class GalleryNotifier extends Notifier<GalleryState> {
   /// Sets the sort order.
   void setSort(GallerySort sort) {
     state = state.copyWith(sort: sort);
+  }
+
+  /// Sets the search query.
+  void setSearchQuery(String query) {
+    state = state.copyWith(searchQuery: query);
   }
 
   /// Toggles selection of a file.
