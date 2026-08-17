@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../models/file_item.dart';
 import '../../providers/gallery_provider.dart';
 import '../../providers/storage_provider.dart';
+import '../../services/storage_service.dart';
 import '../../widgets/thumbnail_image.dart';
 import 'file_info_screen.dart';
 import 'folder_picker_screen.dart';
@@ -17,10 +18,12 @@ class GalleryScreen extends ConsumerStatefulWidget {
 
 class _GalleryScreenState extends ConsumerState<GalleryScreen> {
   final ScrollController _scrollController = ScrollController();
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void dispose() {
     _scrollController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -29,24 +32,39 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
     final gallery = ref.watch(galleryProvider);
     final theme = Theme.of(context);
 
+    // Clear the search text field when the folder changes
+    if (gallery.searchQuery.isEmpty && _searchController.text.isNotEmpty) {
+      _searchController.clear();
+    }
+
     return Scaffold(
-      appBar: AppBar(
-        title: Text(gallery.selectedFolderName ?? 'Gallery'),
-        actions: [
-          if (gallery.selectedFolderPath != null) ...[
-            IconButton(
-              icon: const Icon(Icons.refresh),
-              tooltip: 'Rescan folder',
-              onPressed: () => ref.read(galleryProvider.notifier).refresh(),
+      appBar: gallery.selectedFolderPath == null
+          ? AppBar(title: const Text('Gallery'))
+          : AppBar(
+              title: TextField(
+                controller: _searchController,
+                decoration: const InputDecoration(
+                  hintText: 'Search files...',
+                  border: InputBorder.none,
+                  suffixIcon: Icon(Icons.search),
+                ),
+                onChanged: (value) =>
+                    ref.read(galleryProvider.notifier).setSearchQuery(value),
+              ),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.refresh),
+                  tooltip: 'Rescan folder',
+                  onPressed: () =>
+                      ref.read(galleryProvider.notifier).refresh(),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.folder_open),
+                  tooltip: 'Change folder',
+                  onPressed: () => _openFolderPicker(context),
+                ),
+              ],
             ),
-            IconButton(
-              icon: const Icon(Icons.folder_open),
-              tooltip: 'Change folder',
-              onPressed: () => _openFolderPicker(context),
-            ),
-          ],
-        ],
-      ),
       body: gallery.selectedFolderPath == null
           ? _buildFolderSelection(theme)
           : _buildGalleryContent(gallery, theme),
@@ -987,7 +1005,7 @@ class _GallerySelectionBar extends ConsumerWidget {
 
 class _MoveDialog extends StatefulWidget {
   final String? initialPath;
-  final dynamic storageService;
+  final StorageService storageService;
 
   const _MoveDialog({
     required this.initialPath,
@@ -1002,34 +1020,50 @@ class _MoveDialogState extends State<_MoveDialog> {
   String? _currentPath;
   List<FileItem> _folders = [];
   bool _isLoading = true;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
-    _currentPath = widget.initialPath;
-    _loadFolders();
-  }
-
-  Future<void> _loadFolders() async {
-    setState(() => _isLoading = true);
-    final items = await widget.storageService.listDirectory(_currentPath);
-    if (!mounted) return;
-    setState(() {
-      _folders = items.where((f) => f.isDirectory).toList()
-        ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
-      _isLoading = false;
+    _currentPath = widget.initialPath ?? '/storage/emulated/0';
+    // Use post-frame callback to avoid setState during initState
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _loadFolders();
     });
   }
 
+  Future<void> _loadFolders() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+    try {
+      final items = await widget.storageService.listDirectory(_currentPath);
+      if (!mounted) return;
+      setState(() {
+        _folders = items.where((f) => f.isDirectory).toList()
+          ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'Failed to load folders: $e';
+        _isLoading = false;
+      });
+    }
+  }
+
   void _navigateInto(FileItem folder) {
-    setState(() => _currentPath = folder.path);
+    _currentPath = folder.path;
     _loadFolders();
   }
 
   void _navigateBack() {
     if (_currentPath == null) return;
     final parent = _currentPath!.substring(0, _currentPath!.lastIndexOf('/'));
-    setState(() => _currentPath = parent.isEmpty ? null : parent);
+    _currentPath = parent.isEmpty ? '/storage/emulated/0' : parent;
     _loadFolders();
   }
 
@@ -1063,21 +1097,48 @@ class _MoveDialogState extends State<_MoveDialog> {
             Expanded(
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
-                  : _folders.isEmpty
-                      ? const Center(child: Text('No sub-folders'))
-                      : ListView.builder(
-                          itemCount: _folders.length,
-                          itemBuilder: (context, index) {
-                            final folder = _folders[index];
-                            return ListTile(
-                              dense: true,
-                              leading: const Icon(Icons.folder,
-                                  color: Colors.amber, size: 20),
-                              title: Text(folder.name),
-                              onTap: () => _navigateInto(folder),
-                            );
-                          },
-                        ),
+                  : _error != null
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.error_outline,
+                                    color: Colors.red, size: 40),
+                                const SizedBox(height: 8),
+                                Text(_error!,
+                                    textAlign: TextAlign.center),
+                                const SizedBox(height: 8),
+                                TextButton(
+                                  onPressed: _loadFolders,
+                                  child: const Text('Retry'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                      : _folders.isEmpty
+                          ? const Center(child: Text('No sub-folders'))
+                          : ListView.builder(
+                              itemCount: _folders.length,
+                              itemBuilder: (context, index) {
+                                final folder = _folders[index];
+                                return ListTile(
+                                  dense: true,
+                                  leading: const Icon(Icons.folder,
+                                      color: Colors.amber, size: 20),
+                                  title: Text(folder.name),
+                                  subtitle: Text(
+                                    folder.path,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(fontSize: 11),
+                                  ),
+                                  onTap: () => _navigateInto(folder),
+                                );
+                              },
+                            ),
             ),
           ],
         ),
