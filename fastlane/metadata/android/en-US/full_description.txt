@@ -1,0 +1,51 @@
+**MediaRescue** is a lightweight, privacy-first file and media manager for Android. It helps you find, preview, and manage large and duplicate media and files on your device — completely offline.
+
+## Features
+
+### Full Storage Scanning
+- Recursively scans shared storage and removable SD cards
+- Real-time progress with incremental results
+- Save and load scans to avoid re-scanning repeatedly
+
+### Intelligent Gallery View
+- Files grouped by folder, image, video, audio, PDF, and more
+- Fast thumbnail generation for smooth browsing
+
+### Built-in Media Previews
+- **Images** — pinch-to-zoom and pan viewer
+- **Videos** — smooth in-app playback
+- **PDFs** — native-style PDF rendering
+- **Audio** — in-app audio playback
+
+### Batch Operations
+- Multi-select files with a dedicated selection UI
+- Copy, move, delete, and rename multiple files at once
+
+### Large Files Finder
+- Identify files that consume the most space
+- Filter by size and reclaim storage quickly
+
+### Search
+- Fast search across scanned file names and paths
+- Locate files instantly without manual browsing
+
+### Folder Picker & Browser
+- Browse directories manually
+- Detailed file metadata: size, type, modified date, path
+
+### Modern UI / UX
+- Light & dark themes with Material 3 design
+- Clean onboarding with permission guidance
+
+## Privacy First
+- **100% offline** — all scanning and processing happens locally
+- No network calls, no analytics, no cloud uploads, no tracking
+- Your files never leave your device
+
+## Permissions
+- **MANAGE_EXTERNAL_STORAGE** (Android 11+) — "All files access" for full storage scanning
+- **READ_EXTERNAL_STORAGE** (Android 5–10) — read public media
+- **WRITE_EXTERNAL_STORAGE** (Android ≤ 9) — copy, move, delete files
+
+## Open Source
+MediaRescue is free and open source under the MIT License. No ads, no in-app purchases, no data collection.
