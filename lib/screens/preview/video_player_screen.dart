@@ -20,7 +20,7 @@ class VideoPlayerScreen extends StatefulWidget {
 class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   late PageController _pageController;
   late int _currentIndex;
-  late VideoPlayerController _controller;
+  VideoPlayerController? _controller;
   bool _initialized = false;
 
   List<FileItem> get _videos {
@@ -40,25 +40,44 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   }
 
   void _initController(FileItem item) {
-    if (_initialized) {
-      _controller.dispose();
+    // Always dispose the old controller before creating a new one
+    final oldController = _controller;
+    _controller = null;
+    _initialized = false;
+    if (oldController != null) {
+      try {
+        oldController.pause();
+      } catch (_) {}
+      oldController.dispose();
     }
-    _controller = VideoPlayerController.file(File(item.path))
-      ..initialize().then((_) {
-        if (!mounted) return;
-        setState(() {
-          _initialized = true;
-        });
-        _controller.play();
-      }).catchError((error) {
-        debugPrint('Video init error: $error');
+
+    final newController = VideoPlayerController.file(File(item.path));
+    _controller = newController;
+    newController.initialize().then((_) {
+      if (!mounted || _controller != newController) {
+        // The controller was replaced before initialization completed
+        newController.dispose();
+        return;
+      }
+      setState(() {
+        _initialized = true;
       });
+      newController.play();
+    }).catchError((error) {
+      debugPrint('Video init error: $error');
+      if (_controller == newController) {
+        setState(() {
+          _initialized = false;
+        });
+      }
+    });
   }
 
   @override
   void dispose() {
     _pageController.dispose();
-    _controller.dispose();
+    _controller?.dispose();
+    _controller = null;
     super.dispose();
   }
 
@@ -79,21 +98,21 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         onPageChanged: (index) {
           setState(() {
             _currentIndex = index;
-            _initialized = false;
           });
           _initController(videos[index]);
         },
         itemBuilder: (context, index) {
+          final controller = _controller;
           return Center(
-            child: _initialized && index == _currentIndex
+            child: _initialized && index == _currentIndex && controller != null
                 ? AspectRatio(
-                    aspectRatio: _controller.value.aspectRatio,
+                    aspectRatio: controller.value.aspectRatio,
                     child: Stack(
                       alignment: Alignment.bottomCenter,
                       children: [
-                        VideoPlayer(_controller),
-                        _ControlsOverlay(controller: _controller),
-                        VideoProgressIndicator(_controller,
+                        VideoPlayer(controller),
+                        _ControlsOverlay(controller: controller),
+                        VideoProgressIndicator(controller,
                             allowScrubbing: true),
                       ],
                     ),
