@@ -18,7 +18,7 @@ class AudioPlayerScreen extends StatefulWidget {
 }
 
 class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
-  late VideoPlayerController _controller;
+  VideoPlayerController? _controller;
   late int _currentIndex;
   bool _initialized = false;
 
@@ -32,38 +32,59 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
   void initState() {
     super.initState();
     final audios = _audios;
-    _currentIndex = audios.indexWhere((f) => f.path == widget.item.path);
+    _currentIndex = audios.indexOf(widget.item);
     if (_currentIndex < 0) _currentIndex = 0;
     _initController(audios[_currentIndex]);
   }
 
   void _initController(FileItem item) {
-    if (_initialized) {
-      _controller.dispose();
+    // Always dispose the old controller before creating a new one
+    final oldController = _controller;
+    _controller = null;
+    _initialized = false;
+    if (oldController != null) {
+      try {
+        oldController.pause();
+      } catch (_) {}
+      oldController.dispose();
     }
-    _controller = VideoPlayerController.file(File(item.path))
-      ..initialize().then((_) {
-        if (!mounted) return;
-        setState(() {
-          _initialized = true;
-        });
-        _controller.play();
-      }).catchError((error) {
-        debugPrint('Audio init error: $error');
+
+    final newController = VideoPlayerController.file(File(item.path));
+    _controller = newController;
+    newController.initialize().then((_) {
+      if (!mounted || _controller != newController) {
+        // The controller was replaced before initialization completed
+        newController.dispose();
+        return;
+      }
+      setState(() {
+        _initialized = true;
       });
+      newController.play();
+    }).catchError((error) {
+      debugPrint('Audio init error: $error');
+      if (_controller == newController) {
+        setState(() {
+          _initialized = false;
+        });
+      }
+    });
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _controller?.dispose();
+    _controller = null;
     super.dispose();
   }
 
   void _togglePlay() {
-    if (_controller.value.isPlaying) {
-      _controller.pause();
+    final controller = _controller;
+    if (controller == null) return;
+    if (controller.value.isPlaying) {
+      controller.pause();
     } else {
-      _controller.play();
+      controller.play();
     }
     setState(() {});
   }
@@ -72,9 +93,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
     final audios = _audios;
     if (audios.isEmpty) return;
     _currentIndex = (_currentIndex + 1) % audios.length;
-    setState(() {
-      _initialized = false;
-    });
+    setState(() {});
     _initController(audios[_currentIndex]);
   }
 
@@ -82,9 +101,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
     final audios = _audios;
     if (audios.isEmpty) return;
     _currentIndex = (_currentIndex - 1 + audios.length) % audios.length;
-    setState(() {
-      _initialized = false;
-    });
+    setState(() {});
     _initController(audios[_currentIndex]);
   }
 
@@ -99,6 +116,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
     final theme = Theme.of(context);
     final audios = _audios;
     final currentItem = audios[_currentIndex];
+    final controller = _controller;
 
     return Scaffold(
       appBar: AppBar(
@@ -106,7 +124,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
             maxLines: 1, overflow: TextOverflow.ellipsis),
       ),
       body: Center(
-        child: _initialized
+        child: _initialized && controller != null
             ? Padding(
                 padding: const EdgeInsets.all(24),
                 child: Column(
@@ -141,7 +159,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                     const SizedBox(height: 32),
                     // Progress
                     ValueListenableBuilder(
-                      valueListenable: _controller,
+                      valueListenable: controller,
                       builder: (context, value, _) {
                         final position = value.position;
                         final duration = value.duration;
@@ -155,7 +173,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                                   ? duration.inMilliseconds.toDouble()
                                   : 1,
                               onChanged: (v) {
-                                _controller
+                                controller
                                     .seekTo(Duration(milliseconds: v.toInt()));
                               },
                             ),
@@ -189,7 +207,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                         IconButton.filled(
                           iconSize: 64,
                           icon: Icon(
-                            _controller.value.isPlaying
+                            controller.value.isPlaying
                                 ? Icons.pause_circle_filled
                                 : Icons.play_circle_filled,
                           ),
