@@ -47,3 +47,5 @@ app.*.map.json
 /fdroiddata/
 /docs/
 /fdroid-test/
+/android/app/mediarescue-upload-key.jks
+/android/key.properties
