@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'app.dart';
 import '../screens/scaffold_with_nav_bar.dart';
 import '../screens/home/home_screen.dart';
 import '../screens/browse/browse_screen.dart';
@@ -20,6 +21,7 @@ final routerProvider = Provider<GoRouter>((ref) {
 
   return GoRouter(
     initialLocation: '/home',
+    observers: [routeObserver],
     redirect: (context, state) async {
       final hasAccess = await storageService.hasAccess();
       final isGoingToOnboarding = state.matchedLocation == '/onboarding';
@@ -44,6 +46,45 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/large-files',
         builder: (context, state) => const LargeFilesScreen(),
       ),
+      // Preview screens live outside the shell so they get full-screen
+      // treatment (no bottom navigation bar) and stop playback when
+      // navigating away.
+      GoRoute(
+        path: '/preview/image',
+        builder: (context, state) =>
+            ImageViewerScreen(item: state.extra as dynamic),
+      ),
+      GoRoute(
+        path: '/preview/video',
+        builder: (context, state) {
+          final extra = state.extra;
+          if (extra is Map<String, dynamic>) {
+            return VideoPlayerScreen(
+              item: extra['item'] as dynamic,
+              allFiles: (extra['allFiles'] as List? ?? []),
+            );
+          }
+          return VideoPlayerScreen(item: extra as dynamic);
+        },
+      ),
+      GoRoute(
+        path: '/preview/audio',
+        builder: (context, state) {
+          final extra = state.extra;
+          if (extra is Map<String, dynamic>) {
+            return AudioPlayerScreen(
+              item: extra['item'] as dynamic,
+              allFiles: (extra['allFiles'] as List? ?? []),
+            );
+          }
+          return AudioPlayerScreen(item: extra as dynamic);
+        },
+      ),
+      GoRoute(
+        path: '/preview/pdf',
+        builder: (context, state) =>
+            PdfViewerScreen(item: state.extra as dynamic),
+      ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
           return ScaffoldWithNavBar(navigationShell: navigationShell);
@@ -62,28 +103,6 @@ final routerProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: '/browse',
                 builder: (context, state) => const BrowseScreen(),
-                routes: [
-                  GoRoute(
-                    path: 'image',
-                    builder: (context, state) =>
-                        ImageViewerScreen(item: state.extra as dynamic),
-                  ),
-                  GoRoute(
-                    path: 'video',
-                    builder: (context, state) =>
-                        VideoPlayerScreen(item: state.extra as dynamic),
-                  ),
-                  GoRoute(
-                    path: 'audio',
-                    builder: (context, state) =>
-                        AudioPlayerScreen(item: state.extra as dynamic),
-                  ),
-                  GoRoute(
-                    path: 'pdf',
-                    builder: (context, state) =>
-                        PdfViewerScreen(item: state.extra as dynamic),
-                  ),
-                ],
               ),
             ],
           ),
@@ -92,43 +111,6 @@ final routerProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: '/gallery',
                 builder: (context, state) => const GalleryScreen(),
-                routes: [
-                  GoRoute(
-                    path: 'image',
-                    builder: (context, state) {
-                      final extra = state.extra as Map<String, dynamic>;
-                      return ImageViewerScreen(
-                        item: extra['item'] as dynamic,
-                        allFiles: (extra['allFiles'] as List? ?? []),
-                      );
-                    },
-                  ),
-                  GoRoute(
-                    path: 'video',
-                    builder: (context, state) {
-                      final extra = state.extra as Map<String, dynamic>;
-                      return VideoPlayerScreen(
-                        item: extra['item'] as dynamic,
-                        allFiles: (extra['allFiles'] as List? ?? []),
-                      );
-                    },
-                  ),
-                  GoRoute(
-                    path: 'audio',
-                    builder: (context, state) {
-                      final extra = state.extra as Map<String, dynamic>;
-                      return AudioPlayerScreen(
-                        item: extra['item'] as dynamic,
-                        allFiles: (extra['allFiles'] as List? ?? []),
-                      );
-                    },
-                  ),
-                  GoRoute(
-                    path: 'pdf',
-                    builder: (context, state) =>
-                        PdfViewerScreen(item: state.extra as dynamic),
-                  ),
-                ],
               ),
             ],
           ),
