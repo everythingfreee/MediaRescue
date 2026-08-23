@@ -39,15 +39,19 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
   }
 
-  void _openFile(BuildContext context, dynamic item) {
+  void _openFile(BuildContext context, dynamic item, List<dynamic> results) {
     if (item.isImage) {
-      context.go('/browse/image', extra: item);
+      context.push('/preview/image', extra: item);
     } else if (item.isVideo) {
-      context.go('/browse/video', extra: item);
+      // Pass the video files so next/previous works in the player.
+      final videos = results.where((f) => f.isVideo).toList();
+      context.push('/preview/video', extra: {'item': item, 'allFiles': videos});
     } else if (item.isAudio) {
-      context.go('/browse/audio', extra: item);
+      // Pass the audio files so next/previous works in the player.
+      final audios = results.where((f) => f.isAudio).toList();
+      context.push('/preview/audio', extra: {'item': item, 'allFiles': audios});
     } else if (item.isPdf) {
-      context.go('/browse/pdf', extra: item);
+      context.push('/preview/pdf', extra: item);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Cannot preview this file type yet.')),
@@ -128,7 +132,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           subtitle: Text(
             '${_formatSize(item.size)}  •  ${item.mimeType ?? 'Unknown'}',
           ),
-          onTap: () => _openFile(context, item),
+          onTap: () => _openFile(context, item, results),
         );
       },
     );
