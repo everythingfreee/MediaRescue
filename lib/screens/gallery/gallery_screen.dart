@@ -75,41 +75,71 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
   }
 
   Widget _buildFolderSelection(ThemeData theme) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.photo_library_outlined,
-              size: 80,
-              color: theme.colorScheme.primary,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Gallery',
-              style: theme.textTheme.headlineMedium
-                  ?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Select a folder to scan and view all files inside it, '
-              'including sub-folders.',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 24),
-            FilledButton.icon(
-              onPressed: () => _openFolderPicker(context),
-              icon: const Icon(Icons.folder_open),
-              label: const Text('Choose Folder'),
-            ),
-          ],
+    // Common media folders users often want to scan.
+    const suggestions = [
+      ('Android', '/storage/emulated/0/Android'),
+      ('DCIM', '/storage/emulated/0/DCIM'),
+      ('Pictures', '/storage/emulated/0/Pictures'),
+      ('Download', '/storage/emulated/0/Download'),
+      ('Movies', '/storage/emulated/0/Movies'),
+      ('Music', '/storage/emulated/0/Music'),
+      ('Documents', '/storage/emulated/0/Documents'),
+      ('WhatsApp', '/storage/emulated/0/WhatsApp'),
+    ];
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Icon(
+          Icons.photo_library_outlined,
+          size: 80,
+          color: theme.colorScheme.primary,
         ),
-      ),
+        const SizedBox(height: 16),
+        Text(
+          'Gallery',
+          textAlign: TextAlign.center,
+          style: theme.textTheme.headlineMedium
+              ?.copyWith(fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Select a folder to scan and view all files inside it, '
+          'including sub-folders.',
+          textAlign: TextAlign.center,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 24),
+        FilledButton.icon(
+          onPressed: () => _openFolderPicker(context),
+          icon: const Icon(Icons.folder_open),
+          label: const Text('Choose Folder'),
+        ),
+        const SizedBox(height: 24),
+        Text(
+          'Suggested folders',
+          style: theme.textTheme.titleMedium
+              ?.copyWith(fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        ...suggestions.map((s) {
+          final (name, path) = s;
+          return Card(
+            margin: const EdgeInsets.only(bottom: 8),
+            child: ListTile(
+              leading: const Icon(Icons.folder, color: Colors.amber),
+              title: Text(name),
+              subtitle: Text(path, maxLines: 1, overflow: TextOverflow.ellipsis),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                ref.read(galleryProvider.notifier).selectFolder(path, name);
+              },
+            ),
+          );
+        }),
+      ],
     );
   }
 
@@ -415,13 +445,13 @@ class _GalleryGridTile extends ConsumerWidget {
 
   void _openFile(BuildContext context, WidgetRef ref, FileItem item) {
     if (item.isImage) {
-      context.go('/gallery/image', extra: {'item': item, 'allFiles': allFiles});
+      context.push('/preview/image', extra: item);
     } else if (item.isVideo) {
-      context.go('/gallery/video', extra: {'item': item, 'allFiles': allFiles});
+      context.push('/preview/video', extra: {'item': item, 'allFiles': allFiles});
     } else if (item.isAudio) {
-      context.go('/gallery/audio', extra: {'item': item, 'allFiles': allFiles});
+      context.push('/preview/audio', extra: {'item': item, 'allFiles': allFiles});
     } else if (item.isPdf) {
-      context.go('/gallery/pdf', extra: item);
+      context.push('/preview/pdf', extra: item);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Cannot preview this file type.')),
@@ -667,13 +697,13 @@ class _GalleryListTile extends ConsumerWidget {
 
   void _openFile(BuildContext context, WidgetRef ref, FileItem item) {
     if (item.isImage) {
-      context.go('/gallery/image', extra: {'item': item, 'allFiles': allFiles});
+      context.push('/preview/image', extra: item);
     } else if (item.isVideo) {
-      context.go('/gallery/video', extra: {'item': item, 'allFiles': allFiles});
+      context.push('/preview/video', extra: {'item': item, 'allFiles': allFiles});
     } else if (item.isAudio) {
-      context.go('/gallery/audio', extra: {'item': item, 'allFiles': allFiles});
+      context.push('/preview/audio', extra: {'item': item, 'allFiles': allFiles});
     } else if (item.isPdf) {
-      context.go('/gallery/pdf', extra: item);
+      context.push('/preview/pdf', extra: item);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Cannot preview this file type.')),
