@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
+import '../../app/app.dart';
 import '../../models/file_item.dart';
 
 class VideoPlayerScreen extends StatefulWidget {
@@ -17,7 +18,8 @@ class VideoPlayerScreen extends StatefulWidget {
   State<VideoPlayerScreen> createState() => _VideoPlayerScreenState();
 }
 
-class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
+class _VideoPlayerScreenState extends State<VideoPlayerScreen>
+    with RouteAware {
   late PageController _pageController;
   late int _currentIndex;
   VideoPlayerController? _controller;
@@ -37,6 +39,27 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     if (_currentIndex < 0) _currentIndex = 0;
     _pageController = PageController(initialPage: _currentIndex);
     _initController(videos[_currentIndex]);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route != null) {
+      routeObserver.subscribe(this, route);
+    }
+  }
+
+  @override
+  void didPopNext() {
+    // Returning to this screen — resume playback.
+    _controller?.play();
+  }
+
+  @override
+  void didPushNext() {
+    // Another screen (e.g. a tab) is now on top — pause playback.
+    _controller?.pause();
   }
 
   void _initController(FileItem item) {
@@ -75,6 +98,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
   @override
   void dispose() {
+    routeObserver.unsubscribe(this);
     _pageController.dispose();
     _controller?.dispose();
     _controller = null;
@@ -87,6 +111,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          color: Colors.white,
+          tooltip: 'Back',
+          onPressed: () => Navigator.of(context).maybePop(),
+        ),
         title: Text(videos[_currentIndex].name),
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
