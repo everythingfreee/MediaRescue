@@ -214,13 +214,17 @@ class _FileListTile extends ConsumerWidget {
 
   void _openFile(BuildContext context, WidgetRef ref, FileItem item) {
     if (item.isImage) {
-      context.go('/browse/image', extra: item);
+      context.push('/preview/image', extra: item);
     } else if (item.isVideo) {
-      context.go('/browse/video', extra: item);
+      // Pass the folder's video files so next/previous works in the player.
+      final videos = allFiles.where((f) => f.isVideo).toList();
+      context.push('/preview/video', extra: {'item': item, 'allFiles': videos});
     } else if (item.isAudio) {
-      context.go('/browse/audio', extra: item);
+      // Pass the folder's audio files so next/previous works in the player.
+      final audios = allFiles.where((f) => f.isAudio).toList();
+      context.push('/preview/audio', extra: {'item': item, 'allFiles': audios});
     } else if (item.isPdf) {
-      context.go('/browse/pdf', extra: item);
+      context.push('/preview/pdf', extra: item);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Cannot preview this file type yet.')),
