@@ -90,8 +90,8 @@ class HomeScreen extends ConsumerWidget {
                         onTap: () => context.go('/large-files'),
                       ),
                       _QuickActionTile(
-                        icon: Icons.image_outlined,
-                        label: 'Images',
+                        icon: Icons.search,
+                        label: 'Search',
                         color: colorScheme.secondaryContainer,
                         onTap: () => context.go('/search'),
                       ),
@@ -311,7 +311,7 @@ class _CleanupSuggestions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final suggestions = <(String, String, IconData, Color)>[];
+    final suggestions = <(String, String, IconData, Color, String)>[];
     final videos = stats['Videos'] ?? 0;
     final images = stats['Images'] ?? 0;
     final other = stats['Other'] ?? 0;
@@ -322,6 +322,7 @@ class _CleanupSuggestions extends StatelessWidget {
         '${formatSize(videos)} in videos — review for cleanup',
         Icons.video_collection,
         Colors.blue,
+        '/large-files',
       ));
     }
     if (images > 200 * 1024 * 1024) {
@@ -330,6 +331,7 @@ class _CleanupSuggestions extends StatelessWidget {
         '${formatSize(images)} in images — check for duplicates',
         Icons.photo_library,
         Colors.purple,
+        '/gallery',
       ));
     }
     if (other > 100 * 1024 * 1024) {
@@ -338,6 +340,7 @@ class _CleanupSuggestions extends StatelessWidget {
         '${formatSize(other)} in other files — review',
         Icons.help_outline,
         Colors.grey,
+        '/browse',
       ));
     }
 
@@ -363,7 +366,7 @@ class _CleanupSuggestions extends StatelessWidget {
 
     return Column(
       children: suggestions.map((s) {
-        final (title, subtitle, icon, color) = s;
+        final (title, subtitle, icon, color, route) = s;
         return Card(
           margin: const EdgeInsets.only(bottom: 8),
           child: ListTile(
@@ -371,6 +374,7 @@ class _CleanupSuggestions extends StatelessWidget {
             title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
             subtitle: Text(subtitle),
             trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+            onTap: () => context.go(route),
           ),
         );
       }).toList(),
