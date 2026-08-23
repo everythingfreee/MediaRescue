@@ -59,20 +59,30 @@ class LargeFilesScreen extends ConsumerWidget {
     }
   }
 
-  void _openFile(BuildContext context, FileItem item) {
+  void _openFile(BuildContext context, FileItem item, List<FileItem> largeFiles) {
     if (item.isImage) {
-      context.go('/browse/image', extra: item);
+      context.push('/preview/image', extra: item);
     } else if (item.isVideo) {
-      context.go('/browse/video', extra: item);
+      // Pass the video files so next/previous works in the player.
+      final videos = largeFiles.where((f) => f.isVideo).toList();
+      context.push('/preview/video', extra: {'item': item, 'allFiles': videos});
     } else if (item.isAudio) {
-      context.go('/browse/audio', extra: item);
+      // Pass the audio files so next/previous works in the player.
+      final audios = largeFiles.where((f) => f.isAudio).toList();
+      context.push('/preview/audio', extra: {'item': item, 'allFiles': audios});
     } else if (item.isPdf) {
-      context.go('/browse/pdf', extra: item);
+      context.push('/preview/pdf', extra: item);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Cannot preview this file type yet.')),
       );
     }
+  }
+
+  void _goBack(BuildContext context) {
+    // /large-files is a top-level route outside the shell, so always
+    // navigate back to the home tab.
+    context.go('/home');
   }
 
   @override
@@ -91,56 +101,68 @@ class LargeFilesScreen extends ConsumerWidget {
       '1 GB': 1024 * 1024 * 1024,
     };
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Large Files'),
-        actions: [
-          if (selected.isNotEmpty)
-            IconButton(
-              icon: const Icon(Icons.delete_outline, color: Colors.red),
-              tooltip: 'Delete selected',
-              onPressed: () {
-                final toDelete =
-                    largeFiles.where((f) => selected.contains(f.path)).toList();
-                _confirmDelete(context, ref, toDelete);
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        _goBack(context);
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            tooltip: 'Back',
+            onPressed: () => _goBack(context),
+          ),
+          title: const Text('Large Files'),
+          actions: [
+            if (selected.isNotEmpty)
+              IconButton(
+                icon: const Icon(Icons.delete_outline, color: Colors.red),
+                tooltip: 'Delete selected',
+                onPressed: () {
+                  final toDelete =
+                      largeFiles.where((f) => selected.contains(f.path)).toList();
+                  _confirmDelete(context, ref, toDelete);
+                },
+              ),
+            PopupMenuButton<int>(
+              icon: const Icon(Icons.filter_list),
+              tooltip: 'Size threshold',
+              onSelected: (val) {
+                ref.read(largeFilesThresholdProvider.notifier).set(val);
               },
+              itemBuilder: (ctx) => thresholds.entries.map((e) {
+                return PopupMenuItem<int>(
+                  value: e.value,
+                  child: Row(
+                    children: [
+                      if (threshold == e.value)
+                        const Icon(Icons.check, size: 18)
+                      else
+                        const SizedBox(width: 18),
+                      const SizedBox(width: 8),
+                      Text('Larger than ${e.key}'),
+                    ],
+                  ),
+                );
+              }).toList(),
             ),
-          PopupMenuButton<int>(
-            icon: const Icon(Icons.filter_list),
-            tooltip: 'Size threshold',
-            onSelected: (val) {
-              ref.read(largeFilesThresholdProvider.notifier).set(val);
-            },
-            itemBuilder: (ctx) => thresholds.entries.map((e) {
-              return PopupMenuItem<int>(
-                value: e.value,
-                child: Row(
+          ],
+        ),
+        body: isScanning
+            ? const Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    if (threshold == e.value)
-                      const Icon(Icons.check, size: 18)
-                    else
-                      const SizedBox(width: 18),
-                    const SizedBox(width: 8),
-                    Text('Larger than ${e.key}'),
+                    CircularProgressIndicator(),
+                    SizedBox(height: 16),
+                    Text('Scanning for large files...'),
                   ],
                 ),
-              );
-            }).toList(),
-          ),
-        ],
+              )
+            : _buildLargeFilesList(context, ref, largeFiles, selected),
       ),
-      body: isScanning
-          ? const Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 16),
-                  Text('Scanning for large files...'),
-                ],
-              ),
-            )
-          : _buildLargeFilesList(context, ref, largeFiles, selected),
     );
   }
 
@@ -213,7 +235,7 @@ class LargeFilesScreen extends ConsumerWidget {
                   if (selected.isNotEmpty) {
                     ref.read(selectionProvider.notifier).toggle(item);
                   } else {
-                    _openFile(context, item);
+                    _openFile(context, item, largeFiles);
                   }
                 },
                 onLongPress: () =>
