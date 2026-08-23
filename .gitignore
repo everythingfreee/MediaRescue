@@ -49,4 +49,4 @@ app.*.map.json
 /fdroid-test/
 /android/app/mediarescue-upload-key.jks
 /android/key.properties
-/andoird/gradle/gradle.properties
+/android/gradle/wrapper/gradle-wrapper.properties
