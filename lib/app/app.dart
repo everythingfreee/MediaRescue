@@ -3,6 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'routes.dart';
 import 'theme/app_theme.dart';
 
+/// Global route observer used to detect when a screen is covered/uncovered
+/// (e.g. to pause video playback when switching tabs).
+final RouteObserver<ModalRoute<void>> routeObserver =
+    RouteObserver<ModalRoute<void>>();
+
 /// Global theme mode — a Riverpod 3.x Notifier
 class ThemeModeNotifier extends Notifier<ThemeMode> {
   @override
