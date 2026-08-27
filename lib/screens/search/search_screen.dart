@@ -2,8 +2,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../models/file_item.dart';
+import '../../models/smart_filter.dart';
+import '../../providers/filter_provider.dart';
 import '../../providers/scanner_provider.dart';
 import '../../widgets/thumbnail_image.dart';
+import '../../widgets/smart_filter_sheet.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});
@@ -64,6 +68,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     final results = ref.watch(searchResultsProvider);
     final scanState = ref.watch(scanControllerProvider);
     final query = ref.watch(searchQueryProvider);
+    final filter = ref.watch(smartFilterProvider);
     final isScanning = scanState.status == ScanStatus.scanning;
 
     return Scaffold(
@@ -78,6 +83,19 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             prefixIcon: Icon(Icons.search),
           ),
         ),
+        actions: [
+          IconButton(
+            tooltip: 'Smart Filters',
+            icon: Badge(
+              isLabelVisible: filter.isActive,
+              label: Text('${filter.activeGroupCount}'),
+              child: Icon(filter.isActive
+                  ? Icons.filter_alt
+                  : Icons.filter_alt_outlined),
+            ),
+            onPressed: () => showSmartFilterSheet(context),
+          ),
+        ],
       ),
       body: isScanning
           ? const Center(
@@ -90,12 +108,19 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 ],
               ),
             )
-          : _buildResults(results, query),
+          : Column(
+              children: [
+                if (filter.isActive) _ActiveFilterBar(filter: filter),
+                Expanded(child: _buildResults(results, query, filter)),
+              ],
+            ),
     );
   }
 
-  Widget _buildResults(List<dynamic> results, String query) {
-    if (query.isEmpty) {
+  Widget _buildResults(
+      List<FileItem> results, String query, SmartFilterState filter) {
+    final hasQuery = query.isNotEmpty;
+    if (!hasQuery && !filter.isActive) {
       return const Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -136,5 +161,136 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         );
       },
     );
+  }
+}
+
+/// Displays the currently active filters as removable chips above the results.
+class _ActiveFilterBar extends ConsumerWidget {
+  const _ActiveFilterBar({required this.filter});
+
+  final SmartFilterState filter;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final notifier = ref.read(smartFilterProvider.notifier);
+    final theme = Theme.of(context);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        border: Border(
+          bottom:
+              BorderSide(color: theme.colorScheme.outlineVariant, width: 0.5),
+        ),
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            if (filter.types.isNotEmpty)
+              ...filter.types.map(
+                (type) => Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: InputChip(
+                    label: Text(_typeChipLabel(type)),
+                    onDeleted: () => notifier.toggleType(type),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
+              ),
+            if (filter.hasSizeFilter)
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: InputChip(
+                  label: Text(_sizeChipLabel(filter.sizeFilter)),
+                  onDeleted: () =>
+                      notifier.setSizeFilter(FileSizeFilter.any),
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+            if (filter.hasDateFilter)
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: InputChip(
+                  label: Text(_dateChipLabel(filter.dateFilter)),
+                  onDeleted: () =>
+                      notifier.setDateFilter(ModifiedDateFilter.any),
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+            if (filter.hasLocationFilter)
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: InputChip(
+                  label: Text(filter.internalStorage
+                      ? 'Internal only'
+                      : 'SD Card only'),
+                  onDeleted: () {
+                    // Reset both locations back to a "no restriction" state.
+                    notifier.setInternalStorage(true);
+                    notifier.setSdCard(true);
+                  },
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+            TextButton(
+              onPressed: () => showSmartFilterSheet(context),
+              child: Text('Edit filters (${filter.activeGroupCount})'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static String _typeChipLabel(SmartTypeFilter type) {
+    switch (type) {
+      case SmartTypeFilter.images:
+        return 'Images';
+      case SmartTypeFilter.videos:
+        return 'Videos';
+      case SmartTypeFilter.audio:
+        return 'Audio';
+      case SmartTypeFilter.documents:
+        return 'Documents';
+      case SmartTypeFilter.pdfs:
+        return 'PDFs';
+      case SmartTypeFilter.archives:
+        return 'Archives';
+      case SmartTypeFilter.hidden:
+        return 'Hidden';
+    }
+  }
+
+  static String _sizeChipLabel(FileSizeFilter size) {
+    switch (size) {
+      case FileSizeFilter.any:
+        return 'Any size';
+      case FileSizeFilter.above10mb:
+        return '> 10 MB';
+      case FileSizeFilter.above100mb:
+        return '> 100 MB';
+      case FileSizeFilter.above500mb:
+        return '> 500 MB';
+      case FileSizeFilter.above1gb:
+        return '> 1 GB';
+    }
+  }
+
+  static String _dateChipLabel(ModifiedDateFilter date) {
+    switch (date) {
+      case ModifiedDateFilter.any:
+        return 'Any date';
+      case ModifiedDateFilter.today:
+        return 'Today';
+      case ModifiedDateFilter.last7Days:
+        return '7 days';
+      case ModifiedDateFilter.last30Days:
+        return '30 days';
+      case ModifiedDateFilter.lastYear:
+        return '1 year';
+    }
   }
 }

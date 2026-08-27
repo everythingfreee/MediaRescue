@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/file_item.dart';
+import 'filter_provider.dart';
 import 'storage_provider.dart';
 
 // ── Scan State ─────────────────────────────────────────────────────────────────
@@ -190,9 +191,15 @@ final searchQueryProvider =
 
 final searchResultsProvider = Provider<List<FileItem>>((ref) {
   final query = ref.watch(searchQueryProvider).toLowerCase().trim();
-  if (query.isEmpty) return [];
   final allFiles = ref.watch(allFilesProvider);
-  return allFiles.where((f) => f.name.toLowerCase().contains(query)).toList();
+  final filter = ref.watch(smartFilterProvider);
+
+  var results = allFiles;
+  if (query.isNotEmpty) {
+    results = results.where((f) => f.name.toLowerCase().contains(query)).toList();
+  }
+  // Apply smart filters on the already-indexed list (no re-scan).
+  return applySmartFilters(results, filter);
 });
 
 // ── Large Files ───────────────────────────────────────────────────────────────
