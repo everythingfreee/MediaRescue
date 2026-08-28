@@ -34,7 +34,6 @@ Why this project matters: it's lightweight, open-source (MIT), and designed to r
 - [Contributing](#contributing)
 - [Releases & Distribution](#releases--distribution)
 - [Changelog](#changelog)
-- [Roadmap](#roadmap)
 - [FAQ](#faq)
 - [License](#license)
 
@@ -586,34 +585,6 @@ When publishing a new release:
 6. Update F-Droid metadata (if applicable).
 
 > Security: Never commit `key.properties` or keystore files. See `android/.gitignore`.
-
----
-
-## Roadmap
-
-### v1.0 (Current)
-
-- Full storage scanning
-- Gallery, folder browsing, large files view, search
-- Image/video/PDF/audio previews
-- Batch copy / move / delete / rename
-- Save/load scans
-- Light/dark themes
-- Permission onboarding
-
-### v1.x (Upcoming)
-
-- Improved duplicate detection (content hashing, grouping)
-- Better heuristics for media grouping
-- Storage analytics & charts (usage visualization)
-- Export scan reports (CSV)
-
-### v2.0 (Future)
-
-- Optional cloud-optimized features (opt-in backups)
-- Enhanced tagging & search
-- Disk usage heatmap
-- Translations (i18n)
 
 ---
 
