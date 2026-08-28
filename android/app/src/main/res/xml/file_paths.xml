@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- File paths exposed through the FileProvider used by the Share action. -->
+<paths>
+    <external-path name="external_storage" path="." />
+    <root-path name="root" path="." />
+</paths>
