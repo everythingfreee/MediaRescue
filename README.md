@@ -476,6 +476,58 @@ git push --set-upstream origin feat/your-feature
 
 ## Changelog
 
+### v1.0.3 — Immersive Media Preview & Rescue Experience
+
+**Added: Immersive Media Viewer (TikTok/Reels-style preview with one-gesture rescue)**
+
+- Brand-new **vertically scrollable media viewer** used *everywhere* the app previews images or videos (Gallery grid & list, Browse, Search). Swipe up for the next file, down for the previous one; each item fills the screen with smooth page snapping and nearby preloading — distant videos are released from memory.
+- Header shows a position indicator (`23 / 1482`), the filename (truncated with its extension preserved, e.g. `vacation_video_from_bamyan...mp4`) and the actual **Modified** date.
+- Gestures:
+  - **Tap** — play/pause the video with a brief fading indicator (no permanent play button).
+  - **Double tap** — **Rescue**: copies the original file (with size verification) to the configured rescue destination, indexes the copy with Android's MediaScanner so it appears in gallery apps, shows a tasteful "✓ Rescued" flash (this is rescue — not a like), then asks **Keep Original / Delete Original**. The original is only deleted after the rescued copy is verified to exist; a failed deletion never loses data.
+  - **Long press** — actions menu: Rescue, File information, Share, Open File Location, Delete (with confirmation). The menu is suppressed while the edge-hold speed gesture is active.
+  - **Edge hold** — press & hold the left/right edge of a video (two ~48 dp zones) for a **temporary 2× speed** boost with a "2×" indicator; releasing restores the user-selected playback speed.
+  - **Pinch in/out (video)** — **clean fullscreen**: fades away the filename, rescue and info chrome, keeping only play/pause, seek bar, durations and speed. Pinch out restores everything. A fullscreen button is also available for discoverability.
+  - **Pinch zoom/pan (images)** — normal `photo_view` zoom; zooming pauses vertical feed paging until the image is restored, so the two gestures never fight.
+- Video player: seek bar with immediate timestamp updates (seeking never restarts playback), play/pause button, current/total duration, playback speed selector (0.5× / 1× / 1.5× / 2×, default 1×) and correct playback state when swiping between videos.
+- Controls auto-hide after inactivity and reappear on tap; the media stays the focus.
+- **One-time player tour**: on the first video preview a 6-step guided tour explains swiping, tap to play/pause, double-tap rescue, edge hold 2×, pinch fullscreen and long-press actions. The system back button closes the tour first, and a help button in the video controls restarts it anytime. Shown only once (persisted natively via `SharedPreferences` through the storage channel).
+- **File information sheet**: filename, size, resolution, duration, format, MIME type, frame rate, bitrate, audio details, original path, modified/creation dates — when Android can provide them; otherwise "Unavailable". Never crashes.
+- Broken/unsupported media shows *"Unable to preview this file."* — Rescue, Info and other actions still work.
+- The system back button closes overlays first (tour → clean fullscreen → viewer) and returns to the previous MediaRescue screen instead of exiting the app.
+
+**Added: Rescue Destination System (Settings)**
+
+- New **Rescue Destination** settings: one destination for everything, or per-type destinations for **Images** (`Pictures/MediaRescue`), **Videos** (`Movies/MediaRescue`), **Audio** (`Music/MediaRescue`) and **Other** (`Documents/MediaRescue`), each independently changeable.
+- The preview always asks the rescue system for the correct destination — nothing is hard-coded in the viewer.
+
+**Fixed: Gallery indexing after copy/move**
+
+- Files copied or moved by MediaRescue are now explicitly handed to `MediaScannerConnection.scanFile()` (with MIME type) once the operation finishes, so rescued/moved media appears in normal gallery apps immediately — previously it could take minutes or require touching the file in an external file manager first.
+
+**Improved: Open File Location**
+
+- Now opens the phone's built-in file manager directly at the file's folder using a properly encoded `DocumentsContract` directory URI with `EXTRA_INITIAL_URI`, with explicit DocumentsUI and generic file-manager fallbacks.
+
+**New files**
+
+- `lib/screens/preview/immersive_media_viewer_screen.dart` — the immersive viewer: vertical feed, gestures, video player, tour, rescue flash and actions menu.
+- `lib/providers/rescue_provider.dart` — rescue destination settings + rescue operation (copy → verify → index).
+- `lib/widgets/media_info_sheet.dart` — detailed file information bottom sheet.
+- `android/app/src/main/res/xml/file_paths.xml` — FileProvider paths used for sharing files.
+
+**Modified**
+
+- `lib/services/storage_service.dart` — new channel APIs: `copyFileVerified`, `getFileMediaInfo`, `indexMedia`, `createDirectory`, `shareFile`, `openFileLocation`, rescue-settings persistence and `getAppPrefBool`/`setAppPrefBool`.
+- `android/app/src/main/kotlin/com/shaheer/mediarescue/mediarescue/MainActivity.kt` — native implementations for the new APIs, the media-scanning fix and the rewritten "Open File Location".
+- `android/app/src/main/AndroidManifest.xml` — registered the `FileProvider` used for sharing.
+- `lib/app/routes.dart` — route for the immersive viewer.
+- `lib/screens/gallery/gallery_screen.dart`, `lib/screens/browse/browse_screen.dart`, `lib/screens/search/search_screen.dart` — image/video taps now open the immersive viewer with the surrounding files as feed context.
+- `lib/screens/settings/settings_screen.dart` — Rescue Destination section.
+- `pubspec.yaml` — version bumped to `1.0.3+4`.
+
+---
+
 ### v1.0.2 — Smart Filters
 
 **Added: Smart Filters for Search**
