@@ -44,12 +44,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 
   void _openFile(BuildContext context, dynamic item, List<dynamic> results) {
-    if (item.isImage) {
-      context.push('/preview/image', extra: item);
-    } else if (item.isVideo) {
-      // Pass the video files so next/previous works in the player.
-      final videos = results.where((f) => f.isVideo).toList();
-      context.push('/preview/video', extra: {'item': item, 'allFiles': videos});
+    if (item.isImage || item.isVideo) {
+      // Pass every image/video in the current result set so the immersive
+      // feed supports vertical browsing across both types.
+      final media = results.where((f) => f.isImage || f.isVideo).toList();
+      context.push('/preview/media', extra: {'item': item, 'allFiles': media});
     } else if (item.isAudio) {
       // Pass the audio files so next/previous works in the player.
       final audios = results.where((f) => f.isAudio).toList();
