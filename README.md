@@ -33,6 +33,7 @@ Why this project matters: it's lightweight, open-source (MIT), and designed to r
 - [Testing](#testing)
 - [Contributing](#contributing)
 - [Releases & Distribution](#releases--distribution)
+- [Changelog](#changelog)
 - [Roadmap](#roadmap)
 - [FAQ](#faq)
 - [License](#license)
@@ -87,6 +88,16 @@ Why this project matters: it's lightweight, open-source (MIT), and designed to r
 
 - Fast search across scanned file names and paths.
 - Locate files instantly without browsing through folders manually.
+
+### Smart Filters
+
+> **New in v1.0.2**
+
+- **Combinable filters** — narrow thousands of discovered files by narrowing multiple criteria at once (e.g. `videos` **+** `> 500 MB` **+** `modified within 1 year` **+** `hidden`).
+- Filter by **file type** (images, videos, audio, documents, PDFs, archives), **file size** (> 10 MB / > 100 MB / > 500 MB / > 1 GB), **modified date** (today / 7 days / 30 days / 1 year) and **storage location** (internal storage / SD card).
+- Compatible with search — filters and the text query compose together over the scanned index.
+- **Zero re-scanning** — filters operate purely on the already-indexed `FileItem` metadata (path, name, size, mimeType, modifiedDate), so changing a filter is instant.
+- Live feedback: filter button badge shows how many filter groups are active, and active filters appear as removable chips above the results.
 
 ### Folder Picker & Browser
 
@@ -280,6 +291,14 @@ Tap any file to open a built-in preview:
 
 - Use the **Search** screen to find files by name anywhere in the scanned storage.
 
+### 9. Smart Filters (v1.0.2)
+
+- On the **Search** screen, tap the **filter** icon in the top-right corner to open **Smart Filters**.
+- Combine multiple criteria — file type, size, modified date, and storage location.
+- Results update instantly as you change filters; a badge on the filter button shows how many filter groups are active.
+- Tap the **×** on any active filter chip above the results to remove it, or **Clear all** inside the sheet to reset everything.
+- Filters work together with the search box — no re-scan is triggered.
+
 ---
 
 ## Permissions
@@ -325,9 +344,11 @@ mediarescue/
 │   │   └── theme/
 │   │       └── app_theme.dart        # Light/dark theme definitions
 │   ├── models/
-│   │   └── file_item.dart            # File & folder data model
+│   │   ├── file_item.dart            # File & folder data model
+│   │   └── smart_filter.dart         # Smart Filters state & filter enums
 │   ├── providers/                    # Riverpod state management
 │   │   ├── browser_provider.dart     # Directory browsing state
+│   │   ├── filter_provider.dart      # Smart Filters state & filter engine
 │   │   ├── gallery_provider.dart     # Gallery grouping & filtering state
 │   │   ├── scanner_provider.dart     # Scan progress & results state
 │   │   ├── selection_provider.dart   # Multi-select state
@@ -346,6 +367,7 @@ mediarescue/
 │   │   └── storage_service.dart      # MethodChannel bridge to native APIs
 │   └── widgets/
 │       ├── selection_bottom_bar.dart # Bottom action bar for bulk operations
+│       ├── smart_filter_sheet.dart   # Smart Filters bottom-sheet UI
 │       └── thumbnail_image.dart      # Cached thumbnail widget
 ├── test/
 │   └── widget_test.dart              # Widget tests
@@ -366,6 +388,9 @@ mediarescue/
 | `lib/providers/` | Riverpod providers for scanning, gallery, selection, and browser state |
 | `lib/screens/` | All UI screens (gallery, browse, preview, settings, etc.) |
 | `lib/models/file_item.dart` | `FileItem` model (path, name, size, type, MIME, modified date) |
+| `lib/models/smart_filter.dart` | `SmartFilterState` + filter enums (type, size, date) |
+| `lib/providers/filter_provider.dart` | `smartFilterProvider` + `applySmartFilters()` filter engine (in-memory, no re-scan) |
+| `lib/widgets/smart_filter_sheet.dart` | Smart Filters bottom-sheet UI (chips, radios, storage checkboxes) |
 
 ### Tech Stack
 
@@ -446,6 +471,36 @@ git push --set-upstream origin feat/your-feature
 - Include screenshots or recordings for UI changes.
 - Keep everything offline-first and privacy-friendly.
 - Be kind and respectful.
+
+---
+
+## Changelog
+
+### v1.0.2 — Smart Filters
+
+**Added: Smart Filters for Search**
+
+- New combinable, in-memory **Smart Filters** layer on the Search screen, letting users quickly narrow thousands of discovered files without browsing manually.
+- Filter by **file type**: Images, Videos, Audio, Documents, PDFs, Archives, and Hidden files.
+- Filter by **file size**: any / > 10 MB / > 100 MB / > 500 MB / > 1 GB.
+- Filter by **modified date**: any / today / 7 days / 30 days / 1 year.
+- Filter by **storage location**: internal storage (`/storage/emulated/0`) and/or SD card.
+- All filters are **combinable (ANDed)** — e.g. `type = video` + `size > 500 MB` + `modified within 1 year` + `hidden` — fully compatible with the existing text search.
+- Filters operate on the **already-indexed `FileItem` metadata** (path, name, size, mimeType, modifiedDate). **No filesystem re-scan** happens when a filter changes.
+- UI improvements:
+  - Filter button in the Search app bar with an **active-filter badge**.
+  - **Active filter chips** above the results with one-tap removal and a "Clear all" action in the sheet.
+
+**New files**
+
+- `lib/models/smart_filter.dart` — `SmartFilterState`, `SmartTypeFilter`, `FileSizeFilter`, `ModifiedDateFilter`.
+- `lib/providers/filter_provider.dart` — `smartFilterProvider` + `applySmartFilters()` filter engine.
+- `lib/widgets/smart_filter_sheet.dart` — Smart Filters UI (bottom sheet + radio/chip controls).
+
+**Modified**
+
+- `lib/providers/scanner_provider.dart` — `searchResultsProvider` now composes the text query with the Smart Filters.
+- `lib/screens/search/search_screen.dart` — filter button, active-filter chip bar, and filter-aware results/empty states.
 
 ---
 
