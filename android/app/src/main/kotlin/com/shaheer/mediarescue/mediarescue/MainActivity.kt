@@ -1,16 +1,24 @@
 package com.shaheer.mediarescue.mediarescue
 
 import android.Manifest
+import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.media.MediaExtractor
+import android.media.MediaFormat
+import android.media.MediaMetadataRetriever
+import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.Settings
+import android.provider.DocumentsContract
 import android.webkit.MimeTypeMap
+import androidx.core.content.FileProvider
 import androidx.annotation.NonNull
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -56,6 +64,16 @@ class MainActivity : FlutterActivity() {
                     "moveFiles" -> handleMoveFiles(call, result)
                     "getFileBytes" -> handleGetFileBytes(call, result)
                     "renameFile" -> handleRenameFile(call, result)
+                    "copyFileVerified" -> handleCopyFileVerified(call, result)
+                    "getFileMediaInfo" -> handleGetFileMediaInfo(call, result)
+                    "indexMedia" -> handleIndexMedia(call, result)
+                    "createDirectory" -> handleCreateDirectory(call, result)
+                    "shareFile" -> handleShareFile(call, result)
+                    "openFileLocation" -> handleOpenFileLocation(call, result)
+                    "getRescueSettings" -> handleGetRescueSettings(result)
+                    "saveRescueSettings" -> handleSaveRescueSettings(call, result)
+                    "getAppPrefBool" -> handleGetAppPrefBool(call, result)
+                    "setAppPrefBool" -> handleSetAppPrefBool(call, result)
                     "startScan" -> handleStartScan(result)
                     "stopScan" -> {
                         scanning.set(false)
@@ -463,15 +481,22 @@ class MainActivity : FlutterActivity() {
         executor.execute {
             try {
                 var allDeleted = true
+                // Collect all concrete file paths before deleting so MediaStore
+                // entries can be removed after the operation.
+                val scannedPaths = mutableListOf<String>()
                 paths?.forEach { path ->
                     try {
                         val file = File(path)
                         if (file.exists()) {
+                            collectFilePathsRecursively(file, scannedPaths)
                             if (!deleteRecursively(file)) allDeleted = false
                         }
                     } catch (e: Exception) {
                         allDeleted = false
                     }
+                }
+                if (scannedPaths.isNotEmpty()) {
+                    scanMediaPaths(scannedPaths)
                 }
                 runOnUiThread { result.success(allDeleted) }
             } catch (e: Exception) {
@@ -500,6 +525,7 @@ class MainActivity : FlutterActivity() {
             try {
                 val destDir = File(destPath)
                 var allCopied = true
+                val scannedPaths = mutableListOf<String>()
                 if (destDir.exists() && destDir.isDirectory) {
                     sourcePaths?.forEach { path ->
                         try {
@@ -507,11 +533,16 @@ class MainActivity : FlutterActivity() {
                             if (source.exists()) {
                                 val target = File(destDir, source.name)
                                 if (!copyRecursively(source, target)) allCopied = false
+                                scannedPaths.add(target.absolutePath)
                             }
                         } catch (e: Exception) {
                             allCopied = false
                         }
                     }
+                }
+                // Index the freshly created copies so gallery apps see them immediately.
+                if (scannedPaths.isNotEmpty()) {
+                    scanMediaPaths(scannedPaths)
                 }
                 runOnUiThread { result.success(allCopied) }
             } catch (e: Exception) {
@@ -550,6 +581,7 @@ class MainActivity : FlutterActivity() {
             try {
                 val destDir = File(destPath)
                 var allMoved = true
+                val scannedPaths = mutableListOf<String>()
                 if (destDir.exists() && destDir.isDirectory) {
                     sourcePaths?.forEach { path ->
                         try {
@@ -565,11 +597,18 @@ class MainActivity : FlutterActivity() {
                                         allMoved = false
                                     }
                                 }
+                                scannedPaths.add(target.absolutePath)
+                                scannedPaths.add(source.absolutePath)
                             }
                         } catch (e: Exception) {
                             allMoved = false
                         }
                     }
+                }
+                // Index the new location and *also* scan the old (now missing) paths so
+                // stale MediaStore entries are removed and gallery apps update instantly.
+                if (scannedPaths.isNotEmpty()) {
+                    scanMediaPaths(scannedPaths)
                 }
                 runOnUiThread { result.success(allMoved) }
             } catch (e: Exception) {
@@ -584,12 +623,21 @@ class MainActivity : FlutterActivity() {
         executor.execute {
             try {
                 val file = File(path)
+                var scannedPaths = mutableListOf<String>()
                 val success = if (file.exists() && !newName.isNullOrEmpty()) {
                     val parent = file.parentFile
                     val newFile = File(parent, newName)
-                    file.renameTo(newFile)
+                    if (file.renameTo(newFile)) {
+                        scannedPaths = mutableListOf(file.absolutePath, newFile.absolutePath)
+                        true
+                    } else {
+                        false
+                    }
                 } else {
                     false
+                }
+                if (scannedPaths.isNotEmpty()) {
+                    scanMediaPaths(scannedPaths)
                 }
                 runOnUiThread { result.success(success) }
             } catch (e: Exception) {
@@ -662,6 +710,449 @@ class MainActivity : FlutterActivity() {
                 runOnUiThread { result.success(null) } // fail gracefully for thumbnails
             }
         }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    //  MEDIA INDEXING / PREVIEW + RESCUE SUPPORT
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /// Asks Android's MediaScanner to index (or re-index) the given paths so
+    /// gallery apps see changes immediately. Scanning a path that no longer
+    /// exists removes its stale MediaStore entry.
+    private fun scanMediaPaths(paths: List<String>) {
+        val validPaths = paths.filter { it.isNotBlank() }.distinct()
+        if (validPaths.isEmpty()) return
+        val mimeTypes = validPaths.map { getMimeType(File(it).name) }.toTypedArray()
+        try {
+            MediaScannerConnection.scanFile(this, validPaths.toTypedArray(), mimeTypes, null)
+        } catch (e: Exception) {
+            // Indexing is best-effort — never crash due to a scan failure.
+        }
+    }
+
+    private fun collectFilePathsRecursively(file: File, out: MutableList<String>) {
+        if (file.isDirectory) {
+            file.listFiles()?.forEach { collectFilePathsRecursively(it, out) }
+        } else {
+            out.add(file.absolutePath)
+        }
+    }
+
+    private fun handleIndexMedia(call: MethodCall, result: MethodChannel.Result) {
+        val paths = call.argument<List<String>>("paths") ?: emptyList()
+        executor.execute {
+            scanMediaPaths(paths)
+            runOnUiThread { result.success(true) }
+        }
+    }
+
+    private fun handleCreateDirectory(call: MethodCall, result: MethodChannel.Result) {
+        val path = call.argument<String>("path")
+        executor.execute {
+            try {
+                val dir = File(path ?: "")
+                val ok = if (dir.exists()) dir.isDirectory else dir.mkdirs()
+                runOnUiThread { result.success(ok) }
+            } catch (e: Exception) {
+                runOnUiThread { result.error("MKDIR_ERROR", e.message, null) }
+            }
+        }
+    }
+
+    private fun handleCopyFileVerified(call: MethodCall, result: MethodChannel.Result) {
+        val sourcePath = call.argument<String>("sourcePath")
+        val destDirPath = call.argument<String>("destDirPath")
+        val overwrite = call.argument<Boolean>("overwrite") ?: false
+        executor.execute {
+            try {
+                val source = File(sourcePath ?: "")
+                val destDir = File(destDirPath ?: "")
+                var success = false
+                var alreadyExists = false
+                var targetPath = ""
+                if (source.isFile) {
+                    if (!destDir.exists() && !destDir.mkdirs()) {
+                        runOnUiThread {
+                            result.success(
+                                mapOf(
+                                    "success" to false,
+                                    "targetPath" to targetPath,
+                                    "alreadyExists" to false
+                                )
+                            )
+                        }
+                        return@execute
+                    }
+                    val target = File(destDir, source.name)
+                    targetPath = target.absolutePath
+                    if (target.exists()) {
+                        if (overwrite) {
+                            success = copyVerified(source, target)
+                        } else {
+                            alreadyExists = true
+                        }
+                    } else {
+                        success = copyVerified(source, target)
+                    }
+                }
+                runOnUiThread {
+                    result.success(
+                        mapOf(
+                            "success" to success,
+                            "targetPath" to targetPath,
+                            "alreadyExists" to alreadyExists
+                        )
+                    )
+                }
+            } catch (e: Exception) {
+                runOnUiThread { result.error("COPY_VERIFY_ERROR", e.message, null) }
+            }
+        }
+    }
+
+    private fun copyVerified(source: File, target: File): Boolean {
+        val tmp = File(target.parentFile, "${target.name}.mr_tmp")
+        return try {
+            source.inputStream().use { input ->
+                tmp.outputStream().use { output -> input.copyTo(output) }
+            }
+            val verified = tmp.exists() && tmp.length() == source.length()
+            if (!verified) {
+                tmp.delete()
+                return false
+            }
+            if (target.exists() && !target.delete()) {
+                tmp.delete()
+                return false
+            }
+            val renamed = tmp.renameTo(target)
+            if (renamed) return true
+            // Fallback: stream tmp -> target, then verify again.
+            try {
+                target.outputStream().use { output ->
+                    tmp.inputStream().use { input -> input.copyTo(output) }
+                }
+                val ok = target.exists() && target.length() == source.length()
+                tmp.delete()
+                ok
+            } catch (e: Exception) {
+                tmp.delete()
+                false
+            }
+        } catch (e: Exception) {
+            try { tmp.delete() } catch (_: Exception) {}
+            false
+        }
+    }
+
+    /// Extracts rich metadata for the Info panel using
+    /// MediaMetadataRetriever / MediaExtractor / BitmapFactory.
+    private fun handleGetFileMediaInfo(call: MethodCall, result: MethodChannel.Result) {
+        val path = call.argument<String>("path")
+        executor.execute {
+            try {
+                val file = File(path ?: "")
+                if (!file.isFile) {
+                    runOnUiThread { result.error("INFO_ERROR", "File not found", null) }
+                    return@execute
+                }
+                val info = mutableMapOf<String, Any>()
+                info["name"] = file.name
+                info["size"] = file.length()
+                info["modifiedDate"] = file.lastModified()
+                info["extension"] = file.extension.lowercase()
+                info["mimeType"] = getMimeType(file.name)
+
+                var retriever: MediaMetadataRetriever? = null
+                try {
+                    retriever = MediaMetadataRetriever()
+                    retriever.setDataSource(file.absolutePath)
+                    val w = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)
+                    val h = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)
+                    if (w != null && h != null) {
+                        info["width"] = w.toInt()
+                        info["height"] = h.toInt()
+                    }
+                    val dur = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull()
+                    if (dur != null && dur > 0) info["durationMs"] = dur
+                    val frameRate = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_CAPTURE_FRAMERATE)?.toDoubleOrNull()
+                    if (frameRate != null && frameRate > 0) info["frameRate"] = frameRate
+                    val bitrate = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_BITRATE)?.toLongOrNull()
+                    if (bitrate != null && bitrate > 0) info["bitrate"] = bitrate
+                    val hasAudio = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_HAS_AUDIO)?.toIntOrNull()
+                    if (hasAudio != null) info["hasAudio"] = hasAudio == 1
+                    val hasVideo = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_HAS_VIDEO)?.toIntOrNull()
+                    if (hasVideo != null) info["hasVideo"] = hasVideo == 1
+                    val date = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DATE)
+                    if (!date.isNullOrBlank()) info["creationDate"] = date
+                } catch (e: Exception) {
+                    // Not a media container (e.g. plain image) — continue.
+                } finally {
+                    try { retriever?.release() } catch (_: Exception) {}
+                }
+
+                // Image resolution fallback.
+                if (!info.containsKey("width")) {
+                    val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                    BitmapFactory.decodeFile(file.absolutePath, opts)
+                    if (opts.outWidth > 0 && opts.outHeight > 0) {
+                        info["width"] = opts.outWidth
+                        info["height"] = opts.outHeight
+                    }
+                }
+
+                // Per-track metadata (sample rate, channels, codecs, bitrate fallback).
+                try {
+                    val extractor = MediaExtractor()
+                    extractor.setDataSource(file.absolutePath)
+                    for (i in 0 until extractor.trackCount) {
+                        val format = extractor.getTrackFormat(i)
+                        val mime = format.getString(MediaFormat.KEY_MIME) ?: continue
+                        if (mime.startsWith("audio/")) {
+                            info["audioCodec"] = mime
+                            if (format.containsKey(MediaFormat.KEY_SAMPLE_RATE)) {
+                                info["sampleRate"] = format.getInteger(MediaFormat.KEY_SAMPLE_RATE)
+                            }
+                            if (format.containsKey(MediaFormat.KEY_CHANNEL_COUNT)) {
+                                info["channels"] = format.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
+                            }
+                            if (!info.containsKey("bitrate") && format.containsKey(MediaFormat.KEY_BIT_RATE)) {
+                                info["bitrate"] = format.getLong(MediaFormat.KEY_BIT_RATE)
+                            }
+                        } else if (mime.startsWith("video/")) {
+                            info["videoCodec"] = mime
+                            if (!info.containsKey("bitrate") && format.containsKey(MediaFormat.KEY_BIT_RATE)) {
+                                info["bitrate"] = format.getLong(MediaFormat.KEY_BIT_RATE)
+                            }
+                        }
+                    }
+                    extractor.release()
+                } catch (e: Exception) {
+                    // Optional — leave track info absent.
+                }
+
+                runOnUiThread { result.success(info) }
+            } catch (e: Exception) {
+                runOnUiThread { result.error("INFO_ERROR", e.message, null) }
+            }
+        }
+    }
+
+    /// Shares a local file via an ACTION_SEND intent (FileProvider uri).
+    private fun handleShareFile(call: MethodCall, result: MethodChannel.Result) {
+        val path = call.argument<String>("path")
+        runOnUiThread {
+            try {
+                val file = File(path ?: "")
+                if (!file.isFile) {
+                    result.success(false)
+                    return@runOnUiThread
+                }
+                val uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
+                val intent = Intent(Intent.ACTION_SEND).apply {
+                    type = getMimeType(file.name)
+                    putExtra(Intent.EXTRA_STREAM, uri)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                startActivity(Intent.createChooser(intent, "Share file"))
+                result.success(true)
+            } catch (e: Exception) {
+                result.error("SHARE_ERROR", e.message ?: "Share failed", null)
+            }
+        }
+    }
+
+    /// Opens the phone's built-in file manager showing the folder that
+    /// contains [path] (best effort — managers that ignore EXTRA_INITIAL_URI
+    /// still open, but at their default location).
+    private fun handleOpenFileLocation(call: MethodCall, result: MethodChannel.Result) {
+        val path = call.argument<String>("path")
+        runOnUiThread {
+            val ok = revealFileLocation(path ?: "")
+            result.success(ok)
+        }
+    }
+
+    private val documentsAuthority = "com.android.externalstorage.documents"
+
+    /// Builds a DocumentsContract document URI for a folder on the primary
+    /// external storage volume, e.g.
+    /// content://com.android.externalstorage.documents/document/primary%3ADCIM%2FCamera
+    private fun buildPrimaryDirDocumentUri(relativeDir: String): Uri {
+        val rel = relativeDir.trim('/', ' ')
+        val documentId = if (rel.isEmpty()) "primary" else "primary:$rel"
+        return DocumentsContract.buildDocumentUri(documentsAuthority, documentId)
+    }
+
+    private fun revealFileLocation(path: String): Boolean {
+        val file = File(path)
+        val parent = file.parentFile ?: file
+        if (!parent.exists()) return false
+
+        val storageRoot =
+            Environment.getExternalStorageDirectory()?.absolutePath
+                ?: return false
+        val parentPath = parent.absolutePath
+
+        // Only the primary volume can be addressed with a "primary:…" document
+        // id; anything else falls back to opening the file manager directly.
+        val targetDirUri: Uri? = if (parentPath == storageRoot || parentPath.startsWith("$storageRoot/")) {
+            buildPrimaryDirDocumentUri(parentPath.removePrefix(storageRoot))
+        } else {
+            null
+        }
+
+        // 1) The built-in DocumentsUI (AOSP / Google Files), launched directly
+        //    with the folder pre-selected.
+        val dirMime = DocumentsContract.Document.MIME_TYPE_DIR
+        if (targetDirUri != null) {
+            for (pkg in listOf("com.android.documentsui", "com.google.android.documentsui")) {
+                try {
+                    val intent = Intent(Intent.ACTION_VIEW).apply {
+                        setDataAndType(targetDirUri, dirMime)
+                        addFlags(
+                            Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                                Intent.FLAG_ACTIVITY_NEW_TASK
+                        )
+                        setPackage(pkg)
+                        putExtra(DocumentsContract.EXTRA_INITIAL_URI, targetDirUri)
+                    }
+                    startActivity(intent)
+                    return true
+                } catch (e: Exception) {
+                    // Try the next launcher.
+                }
+            }
+            // 2) Any file manager that understands DocumentsContract folders.
+            try {
+                val intent = Intent(Intent.ACTION_VIEW).apply {
+                    setDataAndType(targetDirUri, dirMime)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    putExtra(DocumentsContract.EXTRA_INITIAL_URI, targetDirUri)
+                }
+                startActivity(intent)
+                return true
+            } catch (e: ActivityNotFoundException) {
+                // Fall through to the storage-root fallback.
+            }
+            // 3) Last resort: the storage root, so the user at least lands in
+            //    the file manager instead of an error.
+            try {
+                val rootUri = buildPrimaryDirDocumentUri("")
+                val intent = Intent(Intent.ACTION_VIEW).apply {
+                    setDataAndType(rootUri, dirMime)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    putExtra(DocumentsContract.EXTRA_INITIAL_URI, rootUri)
+                }
+                startActivity(intent)
+                return true
+            } catch (e: Exception) {
+                return false
+            }
+        }
+
+        // Path outside the primary volume: open the file manager without a
+        // pre-selected folder.
+        return try {
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(buildPrimaryDirDocumentUri(""), dirMime)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            startActivity(intent)
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    // ── Rescue destination settings persistence ─────────────────────────────────
+
+    private fun getRescueSettingsFile(): File = File(filesDir, "rescue_settings.json")
+
+    private fun defaultRescueSettings(): Map<String, Any> {
+        val storage = Environment.getExternalStorageDirectory()?.absolutePath ?: "/storage/emulated/0"
+        return mapOf(
+            "singleDestination" to false,
+            "singlePath" to "$storage/Pictures/MediaRescue",
+            "images" to "$storage/Pictures/MediaRescue",
+            "videos" to "$storage/Movies/MediaRescue",
+            "audio" to "$storage/Music/MediaRescue",
+            "other" to "$storage/Documents/MediaRescue"
+        )
+    }
+
+    private fun handleGetRescueSettings(result: MethodChannel.Result) {
+        executor.execute {
+            try {
+                val file = getRescueSettingsFile()
+                val map = if (file.exists()) {
+                    val obj = JSONObject(file.readText())
+                    val defaults = defaultRescueSettings()
+                    mapOf(
+                        "singleDestination" to obj.optBoolean("singleDestination", false),
+                        "singlePath" to obj.optString("singlePath", defaults["singlePath"] as String),
+                        "images" to obj.optString("images", defaults["images"] as String),
+                        "videos" to obj.optString("videos", defaults["videos"] as String),
+                        "audio" to obj.optString("audio", defaults["audio"] as String),
+                        "other" to obj.optString("other", defaults["other"] as String)
+                    )
+                } else {
+                    defaultRescueSettings()
+                }
+                runOnUiThread { result.success(map) }
+            } catch (e: Exception) {
+                runOnUiThread { result.error("GET_SETTINGS_ERROR", e.message, null) }
+            }
+        }
+    }
+
+    private fun handleSaveRescueSettings(call: MethodCall, result: MethodChannel.Result) {
+        val singleDestination = call.argument<Boolean>("singleDestination") ?: true
+        val singlePath = call.argument<String>("singlePath") ?: ""
+        val images = call.argument<String>("images") ?: ""
+        val videos = call.argument<String>("videos") ?: ""
+        val audio = call.argument<String>("audio") ?: ""
+        val other = call.argument<String>("other") ?: ""
+        executor.execute {
+            try {
+                val obj = JSONObject()
+                obj.put("singleDestination", singleDestination)
+                obj.put("singlePath", singlePath)
+                obj.put("images", images)
+                obj.put("videos", videos)
+                obj.put("audio", audio)
+                obj.put("other", other)
+                FileOutputStream(getRescueSettingsFile()).use {
+                    it.write(obj.toString().toByteArray())
+                }
+                runOnUiThread { result.success(true) }
+            } catch (e: Exception) {
+                runOnUiThread { result.error("SAVE_SETTINGS_ERROR", e.message, null) }
+            }
+        }
+    }
+
+    // ── Simple app preferences (used for one-time UI state, e.g. the player
+    //    tour) ─────────────────────────────────────────────────────────────────
+
+    private val appPrefs: SharedPreferences by lazy {
+        getSharedPreferences("mediarescue_prefs", MODE_PRIVATE)
+    }
+
+    private fun handleGetAppPrefBool(call: MethodCall, result: MethodChannel.Result) {
+        val key = call.argument<String>("key") ?: ""
+        result.success(appPrefs.getBoolean(key, false))
+    }
+
+    private fun handleSetAppPrefBool(call: MethodCall, result: MethodChannel.Result) {
+        val key = call.argument<String>("key")
+        if (key.isNullOrEmpty()) {
+            result.error("PREF_ERROR", "Missing preference key", null)
+            return
+        }
+        val value = call.argument<Boolean>("value") ?: false
+        appPrefs.edit().putBoolean(key, value).apply()
+        result.success(true)
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
