@@ -444,10 +444,9 @@ class _GalleryGridTile extends ConsumerWidget {
   }
 
   void _openFile(BuildContext context, WidgetRef ref, FileItem item) {
-    if (item.isImage) {
-      context.push('/preview/image', extra: item);
-    } else if (item.isVideo) {
-      context.push('/preview/video', extra: {'item': item, 'allFiles': allFiles});
+    if (item.isImage || item.isVideo) {
+      final media = allFiles.where((f) => f.isImage || f.isVideo).toList();
+      context.push('/preview/media', extra: {'item': item, 'allFiles': media});
     } else if (item.isAudio) {
       context.push('/preview/audio', extra: {'item': item, 'allFiles': allFiles});
     } else if (item.isPdf) {
@@ -696,10 +695,9 @@ class _GalleryListTile extends ConsumerWidget {
   }
 
   void _openFile(BuildContext context, WidgetRef ref, FileItem item) {
-    if (item.isImage) {
-      context.push('/preview/image', extra: item);
-    } else if (item.isVideo) {
-      context.push('/preview/video', extra: {'item': item, 'allFiles': allFiles});
+    if (item.isImage || item.isVideo) {
+      final media = allFiles.where((f) => f.isImage || f.isVideo).toList();
+      context.push('/preview/media', extra: {'item': item, 'allFiles': media});
     } else if (item.isAudio) {
       context.push('/preview/audio', extra: {'item': item, 'allFiles': allFiles});
     } else if (item.isPdf) {
