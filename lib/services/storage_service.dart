@@ -43,6 +43,43 @@ abstract class StorageService {
   Future<bool> saveScanData(List<FileItem> files);
   Future<List<FileItem>> loadScanData();
   Future<bool> clearScanData();
+
+  // ── Preview + Rescue support ─────────────────────────────────────────────
+
+  /// Copies a single file into [destDirPath] with size verification and return:
+  /// {success, targetPath, alreadyExists}.
+  Future<Map<String, Object?>> copyFileVerified(
+    String sourcePath,
+    String destDirPath,
+    bool overwrite,
+  );
+
+  /// Rich metadata map for a file (resolution, duration, bitrate, audio info…).
+  Future<Map<String, Object?>> getFileMediaInfo(String path);
+
+  /// Asks Android's MediaScanner to index (or re-index) the given paths.
+  Future<bool> indexMedia(List<String> paths);
+
+  /// Creates a directory (and parents).
+  Future<bool> createDirectory(String path);
+
+  /// Shares a local file with other apps. Returns false when it fails.
+  Future<bool> shareFile(String path);
+
+  /// Best-effort "open file location" in a file manager.
+  Future<bool> openFileLocation(String path);
+
+  /// Loads the persisted rescue-destination settings.
+  Future<Map<Object?, Object?>> getRescueSettings();
+
+  /// Persists the rescue-destination settings.
+  Future<bool> saveRescueSettings(Map<String, Object?> settings);
+
+  /// Reads a boolean app preference stored natively (SharedPreferences).
+  Future<bool> getAppPrefBool(String key);
+
+  /// Writes a boolean app preference natively (SharedPreferences).
+  Future<bool> setAppPrefBool(String key, bool value);
 }
 
 /// Represents a storage root (internal storage, SD card, etc.).
@@ -269,6 +306,139 @@ class MethodChannelStorageService implements StorageService {
   Future<bool> clearScanData() async {
     try {
       final bool? result = await _channel.invokeMethod('clearScanData');
+      return result ?? false;
+    } on PlatformException catch (_) {
+      return false;
+    }
+  }
+
+  @override
+  Future<Map<String, Object?>> copyFileVerified(
+    String sourcePath,
+    String destDirPath,
+    bool overwrite,
+  ) async {
+    try {
+      final raw = await _channel.invokeMethod<dynamic>('copyFileVerified', {
+        'sourcePath': sourcePath,
+        'destDirPath': destDirPath,
+        'overwrite': overwrite,
+      });
+      if (raw is Map) {
+        return {
+          for (final entry in raw.entries)
+            entry.key.toString(): entry.value,
+        };
+      }
+    } on PlatformException catch (_) {
+      // Fall through.
+    }
+    return const {'success': false};
+  }
+
+  @override
+  Future<Map<String, Object?>> getFileMediaInfo(String path) async {
+    try {
+      final raw = await _channel.invokeMethod<dynamic>(
+        'getFileMediaInfo',
+        {'path': path},
+      );
+      if (raw is Map) {
+        return {
+          for (final entry in raw.entries)
+            entry.key.toString(): entry.value,
+        };
+      }
+    } on PlatformException catch (_) {
+      // Fall through.
+    }
+    return const {};
+  }
+
+  @override
+  Future<bool> indexMedia(List<String> paths) async {
+    try {
+      final bool? result =
+          await _channel.invokeMethod('indexMedia', {'paths': paths});
+      return result ?? false;
+    } on PlatformException catch (_) {
+      return false;
+    }
+  }
+
+  @override
+  Future<bool> createDirectory(String path) async {
+    try {
+      final bool? result =
+          await _channel.invokeMethod('createDirectory', {'path': path});
+      return result ?? false;
+    } on PlatformException catch (_) {
+      return false;
+    }
+  }
+
+  @override
+  Future<bool> shareFile(String path) async {
+    try {
+      final bool? result =
+          await _channel.invokeMethod('shareFile', {'path': path});
+      return result ?? false;
+    } on PlatformException catch (_) {
+      return false;
+    }
+  }
+
+  @override
+  Future<bool> openFileLocation(String path) async {
+    try {
+      final bool? result =
+          await _channel.invokeMethod('openFileLocation', {'path': path});
+      return result ?? false;
+    } on PlatformException catch (_) {
+      return false;
+    }
+  }
+
+  @override
+  Future<Map<Object?, Object?>> getRescueSettings() async {
+    try {
+      final raw = await _channel.invokeMethod<dynamic>('getRescueSettings');
+      if (raw is Map) {
+        return raw.cast<Object?, Object?>();
+      }
+    } on PlatformException catch (_) {
+      // Fall through.
+    }
+    return const {};
+  }
+
+  @override
+  Future<bool> saveRescueSettings(Map<String, Object?> settings) async {
+    try {
+      final bool? result =
+          await _channel.invokeMethod('saveRescueSettings', settings);
+      return result ?? false;
+    } on PlatformException catch (_) {
+      return false;
+    }
+  }
+
+  @override
+  Future<bool> getAppPrefBool(String key) async {
+    try {
+      final bool? result =
+          await _channel.invokeMethod('getAppPrefBool', {'key': key});
+      return result ?? false;
+    } on PlatformException catch (_) {
+      return false;
+    }
+  }
+
+  @override
+  Future<bool> setAppPrefBool(String key, bool value) async {
+    try {
+      final bool? result = await _channel
+          .invokeMethod('setAppPrefBool', {'key': key, 'value': value});
       return result ?? false;
     } on PlatformException catch (_) {
       return false;
