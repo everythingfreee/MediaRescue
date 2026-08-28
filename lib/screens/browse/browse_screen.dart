@@ -213,12 +213,11 @@ class _FileListTile extends ConsumerWidget {
   }
 
   void _openFile(BuildContext context, WidgetRef ref, FileItem item) {
-    if (item.isImage) {
-      context.push('/preview/image', extra: item);
-    } else if (item.isVideo) {
-      // Pass the folder's video files so next/previous works in the player.
-      final videos = allFiles.where((f) => f.isVideo).toList();
-      context.push('/preview/video', extra: {'item': item, 'allFiles': videos});
+    if (item.isImage || item.isVideo) {
+      // Pass every image/video in the current folder so the immersive feed
+      // supports vertical browsing across both types.
+      final media = allFiles.where((f) => f.isImage || f.isVideo).toList();
+      context.push('/preview/media', extra: {'item': item, 'allFiles': media});
     } else if (item.isAudio) {
       // Pass the folder's audio files so next/previous works in the player.
       final audios = allFiles.where((f) => f.isAudio).toList();
