@@ -8,6 +8,10 @@ import 'theme/app_theme.dart';
 final RouteObserver<ModalRoute<void>> routeObserver =
     RouteObserver<ModalRoute<void>>();
 
+/// Global navigator key used by non-UI services (update dialog, notifications)
+/// to show Material dialogs from anywhere in the app.
+final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
+
 /// Global theme mode — a Riverpod 3.x Notifier
 class ThemeModeNotifier extends Notifier<ThemeMode> {
   @override

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../providers/storage_provider.dart';
 import '../../providers/scanner_provider.dart';
 import '../../providers/rescue_provider.dart';
+import '../../services/notification_service.dart';
 import '../../app/app.dart' show themeModeProvider;
 
 class SettingsScreen extends ConsumerWidget {
@@ -62,6 +63,9 @@ class SettingsScreen extends ConsumerWidget {
           _SectionHeader(label: 'Rescue Destination'),
           const _RescueDestinationSection(),
           const Divider(),
+          _SectionHeader(label: 'Notifications'),
+          const _UpdateNotificationsTile(),
+          const Divider(),
           _SectionHeader(label: 'Navigation'),
           ListTile(
             leading: const Icon(Icons.data_usage),
@@ -70,15 +74,17 @@ class SettingsScreen extends ConsumerWidget {
           ),
           const Divider(),
           _SectionHeader(label: 'About'),
-          const ListTile(
-            leading: Icon(Icons.info_outline),
-            title: Text('Version'),
-            subtitle: Text('1.0.4'),
+          ListTile(
+            leading: const Icon(Icons.info_outline),
+            title: const Text('About MediaRescue'),
+            subtitle: const Text('Version, resources and links'),
+            onTap: () => context.push('/about'),
           ),
-          const ListTile(
-            leading: Icon(Icons.lock_outline),
-            title: Text('Privacy'),
-            subtitle: Text('All files stay on your device. Nothing is uploaded.'),
+          ListTile(
+            leading: const Icon(Icons.lock_outline),
+            title: const Text('Privacy Policy'),
+            subtitle: const Text('How MediaRescue handles your data and notifications'),
+            onTap: () => context.push('/privacy'),
           ),
         ],
       ),
@@ -356,6 +362,73 @@ class _DestinationDialogState extends State<_DestinationDialog> {
           child: const Text('Save'),
         ),
       ],
+    );
+  }
+}
+/// Toggle for receiving MediaRescue update notifications (FCM topic
+/// `mediarescue-updates`). Toggling on requests notification permission when
+/// the system has not decided yet and subscribes to the topic; toggling off
+/// unsubscribes. Denied permission never blocks normal app usage.
+class _UpdateNotificationsTile extends StatefulWidget {
+  const _UpdateNotificationsTile();
+
+  @override
+  State<_UpdateNotificationsTile> createState() =>
+      _UpdateNotificationsTileState();
+}
+
+class _UpdateNotificationsTileState extends State<_UpdateNotificationsTile> {
+  bool? _enabled;
+
+  @override
+  void initState() {
+    super.initState();
+    _refresh();
+  }
+
+  Future<void> _refresh() async {
+    final enabled = await NotificationService.areNotificationsEnabled();
+    if (!mounted) return;
+    setState(() => _enabled = enabled);
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  Future<void> _onChanged(bool value) async {
+    if (value) {
+      await NotificationService.requestPermissionIfNeeded();
+    } else {
+      await NotificationService.unsubscribe();
+    }
+    final enabled = await NotificationService.areNotificationsEnabled();
+    if (!mounted) return;
+    setState(() => _enabled = enabled);
+
+    if (value && !enabled) {
+      _showMessage(
+        'Notifications are disabled for MediaRescue. Enable them in your '
+        'device settings to receive update announcements.',
+      );
+    } else if (!value) {
+      _showMessage('Update notifications turned off.');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SwitchListTile(
+      secondary: const Icon(Icons.notifications_active_outlined),
+      title: const Text('Update notifications'),
+      subtitle: const Text(
+        'Receive announcements when a new version is available '
+        '(Firebase Cloud Messaging).',
+      ),
+      value: _enabled ?? false,
+      onChanged: _enabled == null ? null : _onChanged,
     );
   }
 }

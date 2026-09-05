@@ -40,6 +40,12 @@ dependencies:
   video_player: ^2.11.1
   photo_view: ^0.15.0
   flutter_pdfview: ^1.4.5
+  firebase_core: ^4.14.0
+  firebase_messaging: ^16.6.0
+  in_app_update: ^4.2.5
+  url_launcher: ^6.3.2
+  package_info_plus: ^8.1.1
+  flutter_local_notifications: ^20.1.0
 
 dev_dependencies:
   flutter_test:

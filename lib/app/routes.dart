@@ -8,6 +8,9 @@ import '../screens/home/home_screen.dart';
 import '../screens/browse/browse_screen.dart';
 import '../screens/search/search_screen.dart';
 import '../screens/settings/settings_screen.dart';
+import '../screens/settings/about_screen.dart';
+import '../screens/settings/contact_screen.dart';
+import '../screens/settings/privacy_policy_screen.dart';
 import '../screens/onboarding/permission_screen.dart';
 import '../screens/preview/immersive_media_viewer_screen.dart';
 import '../screens/preview/audio_player_screen.dart';
@@ -22,6 +25,7 @@ final routerProvider = Provider<GoRouter>((ref) {
 
   return GoRouter(
     initialLocation: '/home',
+    navigatorKey: rootNavigatorKey,
     observers: [routeObserver],
     redirect: (context, state) async {
       final hasAccess = await storageService.hasAccess();
@@ -46,6 +50,20 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/large-files',
         builder: (context, state) => const LargeFilesScreen(),
+      ),
+      // About / Contact / Privacy policy live outside the shell so they are
+      // presented as normal full-screen pages with working back navigation.
+      GoRoute(
+        path: '/about',
+        builder: (context, state) => const AboutScreen(),
+      ),
+      GoRoute(
+        path: '/contact',
+        builder: (context, state) => const ContactScreen(),
+      ),
+      GoRoute(
+        path: '/privacy',
+        builder: (context, state) => const PrivacyPolicyScreen(),
       ),
       // Preview screens live outside the shell so they get full-screen
       // treatment (no bottom navigation bar) and stop playback when

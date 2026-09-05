@@ -111,8 +111,8 @@ Why this project matters: it's lightweight, open-source (MIT), and designed to r
 
 ### Privacy First
 
-- 100% offline — all scanning and processing happens locally on your device.
-- No network calls, no analytics, no cloud uploads, no tracking.
+- All scanning, previews and processing happen locally on your device — your files are never uploaded.
+- Optional update notifications via Firebase Cloud Messaging and Google Play In-App Updates (no analytics, no tracking, no accounts).
 
 ---
 
@@ -314,12 +314,13 @@ MediaRescue requires storage access to scan and manage files. Here's exactly wha
 
 > **MediaRescue performs all scanning and processing locally on your device.**
 >
-> - No network requests
+> - No uploading of your media files, ever
 > - No analytics or telemetry
-> - No cloud uploads
-> - 100% offline-first
+> - No accounts, no tracking
+> - Core scanning, browsing, previews and file operations work fully offline
+> - Optional online features: Firebase Cloud Messaging update notifications and Google Play In-App Updates (see the [Privacy Policy](https://everythingfreee.github.io/Apps-Privacy-Policy/Apps-Privacy-Policy/mediarescue.html))
 
-Your files never leave your device.
+Your files never leave your device. The optional notification and update features only communicate with Google's Firebase and Play services — they never access file contents.
 
 ---
 
@@ -402,6 +403,11 @@ mediarescue/
 | **Image Viewer** | [photo_view ^0.15.x](https://pub.dev/packages/photo_view) |
 | **Video Player** | [video_player ^2.x](https://pub.dev/packages/video_player) |
 | **PDF Viewer** | [flutter_pdfview ^1.4.x](https://pub.dev/packages/flutter_pdfview) |
+| **Cloud Messaging** | [Firebase Core ^4.x](https://pub.dev/packages/firebase_core) · [firebase_messaging ^16.x](https://pub.dev/packages/firebase_messaging) |
+| **Local Notifications** | [flutter_local_notifications ^20.x](https://pub.dev/packages/flutter_local_notifications) |
+| **In-App Updates** | [in_app_update ^4.x](https://pub.dev/packages/in_app_update) (Google Play Flexible Update) |
+| **App Version** | [package_info_plus ^8.x](https://pub.dev/packages/package_info_plus) |
+| **Links / Email** | [url_launcher ^6.x](https://pub.dev/packages/url_launcher) |
 | **Native Bridge** | Android MethodChannel (Kotlin) |
 | **UI** | Material 3 (light/dark themes) |
 
@@ -474,6 +480,37 @@ git push --set-upstream origin feat/your-feature
 ---
 
 ## Changelog
+
+### v1.0.4 — Update Notifications, In-App Updates, About & More
+
+**Added: Firebase Cloud Messaging update notifications**
+
+- MediaRescue can now announce new releases via **Firebase Cloud Messaging** (manual sends from the Firebase Console — no backend, no server code).
+- Installations subscribe to the topic **`mediarescue-updates`**; no accounts, login or email required, and FCM tokens are never sent to any external server.
+- Notification permission (Android 13+) is requested once, right after onboarding, without breaking the flow. If denied, the app works exactly as before and you can enable update notifications any time from **Settings → Notifications**.
+- Tapping an update notification opens the **Google Play Store page** for MediaRescue (native Play Store app preferred, browser fallback if unavailable).
+- Foreground notifications are shown locally so announcements are visible while the app is open; background messages use the system notification tray — never duplicated.
+
+**Added: Google Play In-App Updates**
+
+- On launch, MediaRescue checks Google Play (in the background — the Home screen stays usable) and shows the standard **"MediaRescue update available"** dialog with **[Update] [Skip]**.
+- Uses the official **Flexible Update** flow: you can keep using MediaRescue while the update downloads, then choose **"Restart to install"** when it's done. Google Play performs the actual installation — no custom APK updater.
+- Skipping hides the same update for the current session only; a newer release can still be announced later.
+- No update → no dialog. Google Play or network unavailable → app continues normally.
+
+**Added: About, Contact & Privacy Policy pages**
+
+- New **Settings → About** page with the app icon, dynamic version number, description, GitHub link, and links to the new Contact and Privacy Policy pages.
+- New **Contact** page with the official email (`mediarescue@sanaullahshaheer.dpdns.org`) and an **Email Us** `mailto:` action, plus the GitHub repository and Issues links.
+- New **Privacy Policy** page with an accurate in-app summary (storage access, local scanning, FCM, Google Play, user controls) and a **Read Full Privacy Policy** link to the official hosted policy.
+
+**Other**
+
+- `INTERNET` and `POST_NOTIFICATIONS` Android permissions added (only used by FCM / Play updates / links — all optional).
+- Version bumped to **1.0.4 (build 5)**.
+- MediaRescue remains fully usable offline: scanning, gallery, search, browser, previews, large files and file operations are unchanged and never depend on Firebase or Google Play.
+
+---
 
 ### v1.0.3 — Immersive Media Preview & Rescue Experience
 
@@ -592,7 +629,7 @@ When publishing a new release:
 
 ### Q: Is my data uploaded anywhere?
 
-**A:** No. MediaRescue performs all scanning and processing locally on your device. There are zero network calls made by the app. Your files never leave your device.
+**A:** No. MediaRescue performs all scanning and processing locally on your device, and your files never leave your device. The only network features are optional and for announcements only: Firebase Cloud Messaging (update notifications, which you can turn off in Settings) and Google Play In-App Updates — neither ever accesses or uploads your files.
 
 ### Q: Will this run on my device?
 

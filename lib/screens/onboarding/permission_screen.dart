@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/storage_provider.dart';
 import '../../providers/scanner_provider.dart';
+import '../../services/notification_service.dart';
 
 class PermissionScreen extends ConsumerStatefulWidget {
   const PermissionScreen({super.key});
@@ -43,6 +44,9 @@ class _PermissionScreenState extends ConsumerState<PermissionScreen>
     if (granted) {
       // Start the full-storage scan and navigate home.
       ref.read(scanControllerProvider.notifier).startScan();
+      // After onboarding completes, ask for notification permission once
+      // (Android only shows the dialog while the OS status is undecided).
+      NotificationService.requestPermissionIfNeeded();
       context.go('/home');
     }
   }
