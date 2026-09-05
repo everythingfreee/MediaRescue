@@ -5,6 +5,7 @@ import '../../providers/scanner_provider.dart';
 import '../../providers/selection_provider.dart';
 import '../../providers/storage_provider.dart';
 import '../../models/file_item.dart';
+import '../../widgets/file_actions_sheet.dart';
 import '../../widgets/thumbnail_image.dart';
 
 class LargeFilesScreen extends ConsumerWidget {
@@ -20,7 +21,10 @@ class LargeFilesScreen extends ConsumerWidget {
   }
 
   Future<void> _confirmDelete(
-      BuildContext context, WidgetRef ref, List<FileItem> files) async {
+    BuildContext context,
+    WidgetRef ref,
+    List<FileItem> files,
+  ) async {
     final totalSize = files.fold<int>(0, (sum, f) => sum + f.size);
     final confirmed = await showDialog<bool>(
       context: context,
@@ -32,8 +36,9 @@ class LargeFilesScreen extends ConsumerWidget {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.of(ctx).pop(false),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(true),
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
@@ -51,15 +56,20 @@ class LargeFilesScreen extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text(success
-                  ? 'Files deleted.'
-                  : 'Some files could not be deleted.')),
+            content: Text(
+              success ? 'Files deleted.' : 'Some files could not be deleted.',
+            ),
+          ),
         );
       }
     }
   }
 
-  void _openFile(BuildContext context, FileItem item, List<FileItem> largeFiles) {
+  void _openFile(
+    BuildContext context,
+    FileItem item,
+    List<FileItem> largeFiles,
+  ) {
     if (item.isImage) {
       context.push('/preview/image', extra: item);
     } else if (item.isVideo) {
@@ -80,9 +90,15 @@ class LargeFilesScreen extends ConsumerWidget {
   }
 
   void _goBack(BuildContext context) {
-    // /large-files is a top-level route outside the shell, so always
-    // navigate back to the home tab.
-    context.go('/home');
+    // /large-files is always pushed on top of the shell, so a normal pop
+    // returns to the exact screen the user came from (Home, Settings,
+    // Search, Browse or Gallery). Only fall back to Home when there is
+    // nothing to pop (e.g. the app was launched directly onto this screen).
+    if (context.canPop()) {
+      Navigator.of(context).maybePop();
+    } else {
+      context.go('/home');
+    }
   }
 
   @override
@@ -101,73 +117,71 @@ class LargeFilesScreen extends ConsumerWidget {
       '1 GB': 1024 * 1024 * 1024,
     };
 
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, result) {
-        if (didPop) return;
-        _goBack(context);
-      },
-      child: Scaffold(
-        appBar: AppBar(
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            tooltip: 'Back',
-            onPressed: () => _goBack(context),
-          ),
-          title: const Text('Large Files'),
-          actions: [
-            if (selected.isNotEmpty)
-              IconButton(
-                icon: const Icon(Icons.delete_outline, color: Colors.red),
-                tooltip: 'Delete selected',
-                onPressed: () {
-                  final toDelete =
-                      largeFiles.where((f) => selected.contains(f.path)).toList();
-                  _confirmDelete(context, ref, toDelete);
-                },
-              ),
-            PopupMenuButton<int>(
-              icon: const Icon(Icons.filter_list),
-              tooltip: 'Size threshold',
-              onSelected: (val) {
-                ref.read(largeFilesThresholdProvider.notifier).set(val);
-              },
-              itemBuilder: (ctx) => thresholds.entries.map((e) {
-                return PopupMenuItem<int>(
-                  value: e.value,
-                  child: Row(
-                    children: [
-                      if (threshold == e.value)
-                        const Icon(Icons.check, size: 18)
-                      else
-                        const SizedBox(width: 18),
-                      const SizedBox(width: 8),
-                      Text('Larger than ${e.key}'),
-                    ],
-                  ),
-                );
-              }).toList(),
-            ),
-          ],
+    return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Back',
+          onPressed: () => _goBack(context),
         ),
-        body: isScanning
-            ? const Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
+        title: const Text('Large Files'),
+        actions: [
+          if (selected.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.delete_outline, color: Colors.red),
+              tooltip: 'Delete selected',
+              onPressed: () {
+                final toDelete = largeFiles
+                    .where((f) => selected.contains(f.path))
+                    .toList();
+                _confirmDelete(context, ref, toDelete);
+              },
+            ),
+          PopupMenuButton<int>(
+            icon: const Icon(Icons.filter_list),
+            tooltip: 'Size threshold',
+            onSelected: (val) {
+              ref.read(largeFilesThresholdProvider.notifier).set(val);
+            },
+            itemBuilder: (ctx) => thresholds.entries.map((e) {
+              return PopupMenuItem<int>(
+                value: e.value,
+                child: Row(
                   children: [
-                    CircularProgressIndicator(),
-                    SizedBox(height: 16),
-                    Text('Scanning for large files...'),
+                    if (threshold == e.value)
+                      const Icon(Icons.check, size: 18)
+                    else
+                      const SizedBox(width: 18),
+                    const SizedBox(width: 8),
+                    Text('Larger than ${e.key}'),
                   ],
                 ),
-              )
-            : _buildLargeFilesList(context, ref, largeFiles, selected),
+              );
+            }).toList(),
+          ),
+        ],
       ),
+      body: isScanning
+          ? const Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Scanning for large files...'),
+                ],
+              ),
+            )
+          : _buildLargeFilesList(context, ref, largeFiles, selected),
     );
   }
 
   Widget _buildLargeFilesList(
-      BuildContext context, WidgetRef ref, List<FileItem> largeFiles, Set<String> selected) {
+    BuildContext context,
+    WidgetRef ref,
+    List<FileItem> largeFiles,
+    Set<String> selected,
+  ) {
     if (largeFiles.isEmpty) {
       return const Center(
         child: Column(
@@ -189,8 +203,10 @@ class LargeFilesScreen extends ConsumerWidget {
           padding: const EdgeInsets.all(16.0),
           child: Row(
             children: [
-              Text('${largeFiles.length} files  •  ${_formatSize(totalSize)}',
-                  style: Theme.of(context).textTheme.bodyMedium),
+              Text(
+                '${largeFiles.length} files  •  ${_formatSize(totalSize)}',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
               const Spacer(),
               if (selected.isNotEmpty)
                 TextButton(
@@ -209,10 +225,9 @@ class LargeFilesScreen extends ConsumerWidget {
 
               return ListTile(
                 selected: isSelected,
-                selectedTileColor: Theme.of(context)
-                    .colorScheme
-                    .secondaryContainer
-                    .withValues(alpha: 0.5),
+                selectedTileColor: Theme.of(
+                  context,
+                ).colorScheme.secondaryContainer.withValues(alpha: 0.5),
                 leading: selected.isNotEmpty
                     ? Checkbox(
                         value: isSelected,
@@ -221,15 +236,39 @@ class LargeFilesScreen extends ConsumerWidget {
                       )
                     : ClipRRect(
                         borderRadius: BorderRadius.circular(6),
-                        child: ThumbnailImage(item: item, width: 44, height: 44),
+                        child: ThumbnailImage(
+                          item: item,
+                          width: 44,
+                          height: 44,
+                        ),
                       ),
-                title:
-                    Text(item.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+                title: Text(
+                  item.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 subtitle: Text(item.mimeType ?? 'Unknown type'),
-                trailing: Text(
-                  _formatSize(item.size),
-                  style: const TextStyle(
-                      fontWeight: FontWeight.bold, color: Colors.red),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _formatSize(item.size),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.red,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.more_vert),
+                      tooltip: 'File actions',
+                      onPressed: () => showFileActionsSheet(
+                        context,
+                        ref,
+                        item,
+                        onOpen: () => _openFile(context, item, largeFiles),
+                      ),
+                    ),
+                  ],
                 ),
                 onTap: () {
                   if (selected.isNotEmpty) {

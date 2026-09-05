@@ -8,6 +8,7 @@ import '../../providers/filter_provider.dart';
 import '../../providers/scanner_provider.dart';
 import '../../widgets/thumbnail_image.dart';
 import '../../widgets/smart_filter_sheet.dart';
+import '../../widgets/file_actions_sheet.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});
@@ -155,6 +156,16 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           title: Text(item.name, maxLines: 1, overflow: TextOverflow.ellipsis),
           subtitle: Text(
             '${_formatSize(item.size)}  •  ${item.mimeType ?? 'Unknown'}',
+          ),
+          trailing: IconButton(
+            icon: const Icon(Icons.more_vert),
+            tooltip: 'File actions',
+            onPressed: () => showFileActionsSheet(
+              context,
+              ref,
+              item,
+              onOpen: () => _openFile(context, item, results),
+            ),
           ),
           onTap: () => _openFile(context, item, results),
         );

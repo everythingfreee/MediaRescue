@@ -27,6 +27,12 @@ class CurrentPathNotifier extends Notifier<List<String>> {
     state = [];
   }
 
+  /// Jumps directly to an absolute directory (used by "Open Location").
+  /// [segments] are the folder names below the storage root.
+  void resetTo(List<String> segments) {
+    state = List<String>.from(segments);
+  }
+
   /// Builds the absolute path for the current navigation state.
   String get currentAbsolutePath {
     if (state.isEmpty) return storageRoot;
@@ -34,10 +40,11 @@ class CurrentPathNotifier extends Notifier<List<String>> {
   }
 }
 
-final currentPathProvider =
-    NotifierProvider<CurrentPathNotifier, List<String>>(() {
-  return CurrentPathNotifier();
-});
+final currentPathProvider = NotifierProvider<CurrentPathNotifier, List<String>>(
+  () {
+    return CurrentPathNotifier();
+  },
+);
 
 /// The absolute path of the current directory.
 final currentAbsolutePathProvider = Provider<String>((ref) {

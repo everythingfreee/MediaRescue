@@ -80,6 +80,12 @@ abstract class StorageService {
 
   /// Writes a boolean app preference natively (SharedPreferences).
   Future<bool> setAppPrefBool(String key, bool value);
+
+  /// Returns the set of file paths currently surfaced through Android's
+  /// MediaStore (its visible media index). Returns `null` when the query
+  /// fails or the platform API is unavailable — callers must treat that as
+  /// "signal unknown", never as "hidden".
+  Future<Set<String>?> getMediaStorePaths();
 }
 
 /// Represents a storage root (internal storage, SD card, etc.).
@@ -443,5 +449,20 @@ class MethodChannelStorageService implements StorageService {
     } on PlatformException catch (_) {
       return false;
     }
+  }
+
+  @override
+  Future<Set<String>?> getMediaStorePaths() async {
+    try {
+      final raw = await _channel.invokeMethod<dynamic>('getMediaStorePaths');
+      if (raw is List) {
+        return raw.whereType<String>().toSet();
+      }
+    } on PlatformException catch (_) {
+      // Fall through — caller treats null as "unknown".
+    } on MissingPluginException catch (_) {
+      // Fall through — caller treats null as "unknown".
+    }
+    return null;
   }
 }

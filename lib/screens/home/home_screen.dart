@@ -87,7 +87,13 @@ class HomeScreen extends ConsumerWidget {
                         icon: Icons.data_usage,
                         label: 'Large Files',
                         color: colorScheme.errorContainer,
-                        onTap: () => context.go('/large-files'),
+                        onTap: () => context.push('/large-files'),
+                      ),
+                      _QuickActionTile(
+                        icon: Icons.visibility_outlined,
+                        label: 'Hidden Media',
+                        color: colorScheme.secondaryContainer,
+                        onTap: () => context.push('/hidden-media'),
                       ),
                       _QuickActionTile(
                         icon: Icons.search,
@@ -374,7 +380,15 @@ class _CleanupSuggestions extends StatelessWidget {
             title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
             subtitle: Text(subtitle),
             trailing: const Icon(Icons.arrow_forward_ios, size: 14),
-            onTap: () => context.go(route),
+            onTap: () {
+              // Full-screen destinations must be pushed (so Back returns to
+              // the previous screen); tab destinations use go().
+              if (route == '/large-files') {
+                context.push(route);
+              } else {
+                context.go(route);
+              }
+            },
           ),
         );
       }).toList(),

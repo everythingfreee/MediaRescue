@@ -15,6 +15,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.provider.MediaStore
 import android.provider.Settings
 import android.provider.DocumentsContract
 import android.webkit.MimeTypeMap
@@ -74,6 +75,7 @@ class MainActivity : FlutterActivity() {
                     "saveRescueSettings" -> handleSaveRescueSettings(call, result)
                     "getAppPrefBool" -> handleGetAppPrefBool(call, result)
                     "setAppPrefBool" -> handleSetAppPrefBool(call, result)
+                    "getMediaStorePaths" -> handleGetMediaStorePaths(result)
                     "startScan" -> handleStartScan(result)
                     "stopScan" -> {
                         scanning.set(false)
@@ -1153,6 +1155,40 @@ class MainActivity : FlutterActivity() {
         val value = call.argument<Boolean>("value") ?: false
         appPrefs.edit().putBoolean(key, value).apply()
         result.success(true)
+    }
+
+    // ── MediaStore index (Hidden Media) ──────────────────────────────────────
+    //
+    // Returns every file path currently surfaced through MediaStore so the
+    // Dart side can detect media that exists on disk but is missing from the
+    // system media index. Runs on the background executor; any failure is
+    // reported as an error so the caller can skip the signal entirely
+    // (an empty result would wrongly flag every file).
+
+    private fun handleGetMediaStorePaths(result: MethodChannel.Result) {
+        executor.execute {
+            try {
+                val paths = ArrayList<String>()
+                val collection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    MediaStore.Files.getContentUri("external_primary")
+                } else {
+                    MediaStore.Files.getContentUri("external")
+                }
+                val projection = arrayOf(MediaStore.MediaColumns.DATA)
+                contentResolver.query(collection, projection, null, null, null)?.use { cursor ->
+                    val dataIndex = cursor.getColumnIndex(MediaStore.MediaColumns.DATA)
+                    if (dataIndex >= 0) {
+                        while (cursor.moveToNext()) {
+                            val path = cursor.getString(dataIndex)
+                            if (!path.isNullOrEmpty()) paths.add(path)
+                        }
+                    }
+                }
+                runOnUiThread { result.success(paths) }
+            } catch (e: Exception) {
+                runOnUiThread { result.error("MEDIA_STORE_ERROR", e.message, null) }
+            }
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════════════════

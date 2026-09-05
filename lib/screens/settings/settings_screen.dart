@@ -70,7 +70,7 @@ class SettingsScreen extends ConsumerWidget {
           ListTile(
             leading: const Icon(Icons.data_usage),
             title: const Text('Large Files'),
-            onTap: () => context.go('/large-files'),
+            onTap: () => context.push('/large-files'),
           ),
           const Divider(),
           _SectionHeader(label: 'About'),

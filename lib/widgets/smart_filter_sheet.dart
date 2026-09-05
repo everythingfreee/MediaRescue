@@ -4,26 +4,38 @@ import '../models/smart_filter.dart';
 import '../providers/filter_provider.dart';
 
 /// Opens the Smart Filters bottom sheet for the current screen.
-Future<void> showSmartFilterSheet(BuildContext context) {
+///
+/// [provider] lets a screen bind the sheet to its own filter state (e.g.
+/// Hidden Media). Defaults to the global Search filters.
+Future<void> showSmartFilterSheet(
+  BuildContext context, {
+  NotifierProvider<SmartFilterController, SmartFilterState>? provider,
+}) {
+  final effectiveProvider = provider ?? smartFilterProvider;
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
     backgroundColor: Theme.of(context).colorScheme.surface,
-    builder: (_) => const SmartFilterSheet(),
+    builder: (_) => SmartFilterSheet(provider: effectiveProvider),
   );
 }
 
 /// Bottom-sheet UI for editing the combinable Smart Filters.
-/// All changes are applied live to [smartFilterProvider] — changing a filter
+/// All changes are applied live to [provider] — changing a filter
 /// recomputes on the existing index and never triggers a filesystem re-scan.
 class SmartFilterSheet extends ConsumerWidget {
-  const SmartFilterSheet({super.key});
+  SmartFilterSheet({
+    super.key,
+    NotifierProvider<SmartFilterController, SmartFilterState>? provider,
+  }) : provider = provider ?? smartFilterProvider;
+
+  final NotifierProvider<SmartFilterController, SmartFilterState> provider;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final filter = ref.watch(smartFilterProvider);
-    final notifier = ref.read(smartFilterProvider.notifier);
+    final filter = ref.watch(provider);
+    final notifier = ref.read(provider.notifier);
     final theme = Theme.of(context);
 
     return FractionallySizedBox(
@@ -33,9 +45,12 @@ class SmartFilterSheet extends ConsumerWidget {
         children: [
           Row(
             children: [
-              Text('Smart Filters',
-                  style: theme.textTheme.titleLarge
-                      ?.copyWith(fontWeight: FontWeight.bold)),
+              Text(
+                'Smart Filters',
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               const Spacer(),
               if (filter.isActive)
                 TextButton.icon(
@@ -48,9 +63,12 @@ class SmartFilterSheet extends ConsumerWidget {
           const SizedBox(height: 8),
 
           // ── File type ─────────────────────────────────────────────────
-          Text('File type',
-              style: theme.textTheme.titleSmall
-                  ?.copyWith(fontWeight: FontWeight.w600)),
+          Text(
+            'File type',
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
@@ -68,9 +86,12 @@ class SmartFilterSheet extends ConsumerWidget {
           const Divider(height: 32),
 
           // ── File size ─────────────────────────────────────────────────
-          Text('Size',
-              style: theme.textTheme.titleSmall
-                  ?.copyWith(fontWeight: FontWeight.w600)),
+          Text(
+            'Size',
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
           const SizedBox(height: 4),
           _FilterRadioGroup<FileSizeFilter>(
             value: filter.sizeFilter,
@@ -87,9 +108,12 @@ class SmartFilterSheet extends ConsumerWidget {
           const Divider(height: 16),
 
           // ── Date ──────────────────────────────────────────────────────
-          Text('Date',
-              style: theme.textTheme.titleSmall
-                  ?.copyWith(fontWeight: FontWeight.w600)),
+          Text(
+            'Date',
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
           const SizedBox(height: 4),
           _FilterRadioGroup<ModifiedDateFilter>(
             value: filter.dateFilter,
@@ -106,9 +130,12 @@ class SmartFilterSheet extends ConsumerWidget {
           const Divider(height: 16),
 
           // ── Location ─────────────────────────────────────────────────
-          Text('Storage',
-              style: theme.textTheme.titleSmall
-                  ?.copyWith(fontWeight: FontWeight.w600)),
+          Text(
+            'Storage',
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
           CheckboxListTile(
             contentPadding: EdgeInsets.zero,
             controlAffinity: ListTileControlAffinity.leading,
@@ -132,6 +159,7 @@ class SmartFilterSheet extends ConsumerWidget {
     );
   }
 }
+
 String _typeLabel(SmartTypeFilter type) {
   switch (type) {
     case SmartTypeFilter.images:
@@ -173,12 +201,14 @@ class _FilterRadioGroup<T> extends StatelessWidget {
       },
       child: Column(
         children: options
-            .map((option) => RadioListTile<T>(
-                  contentPadding: EdgeInsets.zero,
-                  dense: true,
-                  title: Text(option.$2),
-                  value: option.$1,
-                ))
+            .map(
+              (option) => RadioListTile<T>(
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                title: Text(option.$2),
+                value: option.$1,
+              ),
+            )
             .toList(),
       ),
     );

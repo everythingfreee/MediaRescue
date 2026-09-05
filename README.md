@@ -83,6 +83,29 @@ Why this project matters: it's lightweight, open-source (MIT), and designed to r
 - Dedicated Large Files view to identify files that consume the most space.
 - Filter by file size and reclaim storage quickly.
 
+### Hidden Media Detector
+
+> **New in v1.0.5**
+
+- A dedicated **Hidden Media** screen (also on the Home screen) surfaces media that Android's gallery never shows you.
+- Classification uses **combined independent signals** — never a single naive rule:
+  - **Hidden directory** — the file lives under a dot-directory (`.`).
+  - **`.nomedia` detected** — the file sits under a directory containing a `.nomedia` marker (checked on a background isolate).
+  - **Missing from MediaStore** — the file exists on disk but is not surfaced through Android's media index.
+  - **Unusual location** — app-private (`Android/data`, `Android/obb`) or cache/temp/backup-style directories.
+  - **Deep path** — unusually deep directory nesting.
+- Every item shows exactly **why** it was classified (only the signals that are actually true) via "Why hidden?" — detection is clearly labelled as heuristic, and normal media in Downloads, messaging apps or DCIM is **not** flagged just for being outside DCIM.
+- **View options** — switch between a dense **List** (with inline reasons) and **Large Icons** (thumbnail grid, mirroring the Gallery), plus a **name search** and **Smart Filters** (file type, size, date, storage — scoped to Hidden Media so Search filters stay untouched).
+- Fully offline, computed from the existing scan index — no re-scanning and no server.
+
+### File Actions: Information & Open Location
+
+> **New in v1.0.5**
+
+- On the **Search**, **Large Files** and **Hidden Media** screens, every result row now has a **⋮ file-actions** menu with:
+  - **Information** — the existing detailed metadata sheet (name, size, type, path, modified date, media metadata when available).
+  - **Open Location** — jumps the in-app **Browse** tab straight to the file's containing folder (with a system file-manager fallback for SD-card paths).
+
 ### Search
 
 - Fast search across scanned file names and paths.
@@ -330,51 +353,87 @@ Your files never leave your device. The optional notification and update feature
 
 ```
 mediarescue/
-├── android/                          # Android platform wrapper
+├── android/                                  # Android platform wrapper
 │   ├── app/
-│   │   └── src/main/
-│   │       ├── AndroidManifest.xml   # Permissions & app config
-│   │       └── kotlin/               # Native Kotlin code (MethodChannel)
-│   └── build.gradle.kts
+│   │   ├── src/main/
+│   │   │   ├── AndroidManifest.xml           # Permissions & app config (storage, INTERNET, POST_NOTIFICATIONS, FileProvider)
+│   │   │   ├── res/xml/file_paths.xml        # FileProvider paths used for sharing files
+│   │   │   └── kotlin/com/shaheer/mediarescue/mediarescue/
+│   │   │       └── MainActivity.kt           # Native Kotlin: MethodChannel (scan, list, copy/move/delete, thumbnails, media info, MediaStore index), EventChannel scan stream, Open-File-Location, rescue settings
+│   │   ├── build.gradle.kts                  # App module build config & signing
+│   │   └── google-services.json              # Firebase config (git-ignored)
+│   ├── build.gradle.kts                      # Root Gradle config
+│   ├── settings.gradle.kts                   # Gradle plugin management (incl. FlutterFire)
+│   └── key.properties                        # Signing keys reference (git-ignored — never commit)
 ├── lib/
-│   ├── main.dart                     # App entrypoint
+│   ├── main.dart                             # App entrypoint: Firebase init (optional), Riverpod ProviderScope, FCM + in-app update wiring
+│   ├── firebase_options.dart                 # Generated Firebase options (FlutterFire CLI)
 │   ├── app/
-│   │   ├── app.dart                  # Root MaterialApp.router + theme
-│   │   ├── routes.dart               # go_router route definitions
+│   │   ├── app.dart                          # Root MaterialApp.router, theme mode notifier, global router/nav keys
+│   │   ├── routes.dart                       # go_router route table (shell tabs + full-screen routes: large-files, hidden-media, previews, settings pages)
 │   │   └── theme/
-│   │       └── app_theme.dart        # Light/dark theme definitions
+│   │       └── app_theme.dart                # Material 3 light/dark theme definitions
 │   ├── models/
-│   │   ├── file_item.dart            # File & folder data model
-│   │   └── smart_filter.dart         # Smart Filters state & filter enums
-│   ├── providers/                    # Riverpod state management
-│   │   ├── browser_provider.dart     # Directory browsing state
-│   │   ├── filter_provider.dart      # Smart Filters state & filter engine
-│   │   ├── gallery_provider.dart     # Gallery grouping & filtering state
-│   │   ├── scanner_provider.dart     # Scan progress & results state
-│   │   ├── selection_provider.dart   # Multi-select state
-│   │   └── storage_provider.dart     # Storage roots state
+│   │   ├── file_item.dart                    # FileItem — file & folder data model (path, name, size, type, MIME, modified)
+│   │   ├── hidden_media.dart                 # HiddenMediaReason (5 signals) + HiddenMediaItem + combined-evidence classifier
+│   │   └── smart_filter.dart                 # SmartFilterState + filter enums (type, size, date, location)
+│   ├── providers/                            # Riverpod state management
+│   │   ├── browser_provider.dart             # Current directory navigation state (incl. "Open Location" resetTo)
+│   │   ├── filter_provider.dart              # smartFilterProvider + applySmartFilters() filter engine (in-memory, no re-scan)
+│   │   ├── gallery_provider.dart             # Gallery folder selection, grouping, filter/sort state
+│   │   ├── hidden_media_provider.dart        # Hidden Media computation: classifier + .nomedia isolate check + MediaStore lookup; view/search/filter state
+│   │   ├── rescue_provider.dart              # Rescue destination settings + rescue operation (copy → verify → index)
+│   │   ├── scanner_provider.dart             # Scan progress/results, search results, large-files list, storage stats
+│   │   ├── selection_provider.dart           # Multi-select state shared across screens
+│   │   └── storage_provider.dart             # StorageService provider wiring
 │   ├── screens/
-│   │   ├── scaffold_with_nav_bar.dart# Root scaffold with bottom navigation
-│   │   ├── home/                     # Home screen
-│   │   ├── browse/                   # Folder browser screen
-│   │   ├── gallery/                  # Gallery, file info, folder picker
-│   │   ├── large_files/              # Large files screen
-│   │   ├── search/                   # File search screen
-│   │   ├── preview/                  # Image, video, PDF, audio viewers
-│   │   ├── settings/                 # Settings screen
-│   │   └── onboarding/               # Permission onboarding screen
+│   │   ├── scaffold_with_nav_bar.dart        # Root scaffold with bottom navigation (Home/Browse/Gallery/Search/Settings)
+│   │   ├── browse/
+│   │   │   └── browse_screen.dart            # Folder browser: breadcrumbs, navigation, multi-select, previews
+│   │   ├── gallery/
+│   │   │   ├── gallery_screen.dart           # Gallery: folder picker entry, grid/list, filters, sort, search
+│   │   │   ├── file_info_screen.dart         # Detailed file information screen
+│   │   │   └── folder_picker_screen.dart     # Directory chooser for the gallery
+│   │   ├── hidden_media/
+│   │   │   └── hidden_media_screen.dart      # Hidden Media: results with per-item reasons, List/Large-Icons views, search + Smart Filters, "Why hidden?" sheet, empty states
+│   │   ├── home/
+│   │   │   └── home_screen.dart              # Home: scan progress, storage summary, quick actions (Hidden Media, Large Files…), cleanup suggestions
+│   │   ├── large_files/
+│   │   │   └── large_files_screen.dart       # Large Files: size threshold filter, multi-select delete, file actions
+│   │   ├── onboarding/
+│   │   │   └── permission_screen.dart        # First-launch "All files access" guidance
+│   │   ├── preview/
+│   │   │   ├── immersive_media_viewer_screen.dart  # Vertical media feed: gestures, rescue, tour, actions menu
+│   │   │   ├── image_viewer_screen.dart      # Standalone image viewer
+│   │   │   ├── video_player_screen.dart      # Standalone video player
+│   │   │   ├── audio_player_screen.dart      # In-app audio player
+│   │   │   └── pdf_viewer_screen.dart        # In-app PDF viewer
+│   │   ├── search/
+│   │   │   └── search_screen.dart            # Search + Smart Filters + active-filter chips + file actions
+│   │   └── settings/
+│   │       ├── settings_screen.dart          # Settings: rescan, rescue destinations, notifications, navigation links
+│   │       ├── about_screen.dart             # About page (version, GitHub link)
+│   │       ├── contact_screen.dart           # Contact page (email/GitHub/Issues)
+│   │       └── privacy_policy_screen.dart    # In-app privacy policy summary
 │   ├── services/
-│   │   └── storage_service.dart      # MethodChannel bridge to native APIs
+│   │   ├── storage_service.dart              # StorageService abstraction + MethodChannel implementation
+│   │   ├── notification_service.dart         # FCM listeners, topic subscription, foreground notifications
+│   │   ├── update_service.dart               # Google Play In-App Update check (Flexible update flow)
+│   │   └── link_service.dart                 # URL/email launch helpers
 │   └── widgets/
-│       ├── selection_bottom_bar.dart # Bottom action bar for bulk operations
-│       ├── smart_filter_sheet.dart   # Smart Filters bottom-sheet UI
-│       └── thumbnail_image.dart      # Cached thumbnail widget
+│       ├── file_actions_sheet.dart           # Shared file-actions sheet (Information / Open Location / Preview)
+│       ├── media_info_sheet.dart             # Detailed metadata bottom sheet (resolution, duration, bitrate…)
+│       ├── selection_bottom_bar.dart         # Bottom action bar for bulk operations (copy/move/delete/rename)
+│       ├── smart_filter_sheet.dart           # Smart Filters bottom-sheet UI (chips, radios, storage checkboxes; injectable provider)
+│       └── thumbnail_image.dart              # Cached media thumbnail widget
 ├── test/
-│   └── widget_test.dart              # Widget tests
-├── pubspec.yaml                      # Dependencies & app metadata
-├── README.md                         # You are here
-├── LICENSE                           # MIT license
-└── CHANGELOG.md                      # Version history
+│   └── widget_test.dart                      # Widget tests
+├── fastlane/metadata/                        # Store metadata & screenshots
+├── pubspec.yaml                              # Dependencies & app metadata (version 1.0.5+6)
+├── analysis_options.yaml                     # Lint rules (flutter_lints)
+├── README.md                                 # You are here
+├── LICENSE                                   # MIT license
+└── CHANGELOG.md                              # Version history
 ```
 
 ### Key Files
@@ -480,6 +539,60 @@ git push --set-upstream origin feat/your-feature
 ---
 
 ## Changelog
+
+### v1.0.5 — Hidden Media, Navigation Stability & File Actions
+
+**Fixed: Large Files blank-screen bug**
+
+- Opening **Large Files** repeatedly (and navigating between screens) could eventually leave the app on a completely blank/white page while the bottom navigation bar stayed visible.
+- Root cause: `/large-files` is a full-screen route **outside** the bottom-navigation shell, and it was opened with `context.go(...)`. `go` *replaces* the whole route stack — tearing down all five tab screens (with their live streams, futures and listeners) and recreating them on every open/close. Combined with `context.go('/home')` being called from the screen's own context during back handling, the navigation state could become invalid after repeated visits.
+- Fix: Large Files is now **pushed on top** of the shell (`context.push`), so the app underneath stays alive; Back simply pops the route. The manual `PopScope` interception (which invoked navigation during route disposal) was removed.
+
+**Fixed: Large Files Back navigation**
+
+- Pressing Back from Large Files now **returns to the screen you came from** — Home → Large Files → Back → Home, Settings → Large Files → Back → Settings, same for Search, Browse and Gallery. No hard-coded jump to Home.
+
+**Added: 🕵️ Hidden Media**
+
+- New **Hidden Media** destination on the Home screen, making MediaRescue's purpose immediately obvious.
+- A dedicated Hidden Media screen lists media classified as hidden/unusual using **multiple independent signals**, combined as evidence rather than a single rule:
+  - **hiddenDirectory** — the file is inside a dot-directory (e.g. `.folder`).
+  - **.nomedia** — the file sits under a directory containing a `.nomedia` marker (the reason Android gallery apps skip it); checked efficiently on a background isolate.
+  - **mediaStoreMissing** — the file exists in accessible storage but is not surfaced through Android's MediaStore index (queried once via a new native `getMediaStorePaths` channel API; if that query fails, the signal is skipped, never guessed).
+  - **unusualLocation** — app-private directories (`Android/data`, `Android/obb`) or cache/temp/backup-style directories. Legitimate locations like Downloads and messaging-app media folders are **not** flagged on their own.
+  - **deepPath** — unusually deep directory nesting (threshold configurable in code, default 6 directories below the storage root).
+- Classification: hidden directories and `.nomedia` are strong signals on their own; app-private locations count as strong; otherwise at least two weak signals must agree. Normal media in DCIM/Pictures/Downloads stays unflagged.
+- Every item explains **why** it was classified — a "Why hidden?" sheet lists only the signals that are actually true (e.g. "✓ Located in a .nomedia directory"), with a clear note that detection is heuristic.
+- **View options & Smart Filters on Hidden Media**: toggle between **List** and **Large Icons** (thumbnail grid) views, search hidden items by name, and combine Smart Filters (type, size, date, storage) — scoped to the Hidden Media screen so the Search screen's filters are unaffected; shared filter engine, zero re-scan.
+- Proper empty state ("No Hidden Media Found — MediaRescue didn't find any media matching the hidden/unusual criteria."), a "no matching results" state when search/filters narrow everything away, loading state, and graceful handling of permission failures, deleted files and MediaStore query errors — one inaccessible file never breaks the scan.
+- Zero re-scan: detection runs over the existing in-memory scan index; the only filesystem work is the one-shot `.nomedia` check in an isolate.
+
+**Added: File actions on Search & Large Files (and Hidden Media)**
+
+- Result rows now have a **⋮** menu with:
+  - **Information** — the existing detailed metadata sheet (filename, size, type, path, modified date, resolution/duration/bitrate when Android provides them).
+  - **Open Location** — jumps the in-app **Browse** tab directly to the file's containing folder; falls back to the system file manager for paths outside internal storage (e.g. SD cards).
+  - **Preview** — the row's normal tap behaviour, also reachable from the menu.
+- A shared implementation is reused across Search, Large Files and Hidden Media — no duplicated code.
+
+**New files**
+
+- `lib/models/hidden_media.dart` — `HiddenMediaReason` (signal model) + `HiddenMediaItem` + combined-evidence classifier.
+- `lib/providers/hidden_media_provider.dart` — Hidden Media computation (index classification, `.nomedia` isolate check, MediaStore lookup) + view/search/filter state.
+- `lib/screens/hidden_media/hidden_media_screen.dart` — the Hidden Media screen (results, reasons, List/Large-Icons views, search + Smart Filters, empty/loading/error states).
+- `lib/widgets/file_actions_sheet.dart` — shared file-actions sheet + in-app "Open Location" helper.
+- `lib/widgets/smart_filter_sheet.dart` — now accepts an injectable filter provider (reused by Hidden Media).
+
+**Modified**
+
+- `lib/app/routes.dart` — added the `/hidden-media` route.
+- `lib/screens/large_files/large_files_screen.dart` — navigation/back fix, ⋮ file-actions menu.
+- `lib/screens/search/search_screen.dart` — ⋮ file-actions menu on results.
+- `lib/screens/home/home_screen.dart` — Hidden Media quick-action tile; Large Files opened with push.
+- `lib/screens/settings/settings_screen.dart` — Large Files opened with push.
+- `lib/providers/browser_provider.dart` — `resetTo()` for "Open Location".
+- `lib/services/storage_service.dart` — new `getMediaStorePaths()` channel API.
+- `android/.../MainActivity.kt` — native `getMediaStorePaths` (MediaStore query on the background executor).
 
 ### v1.0.4 — Update Notifications, In-App Updates, About & More
 

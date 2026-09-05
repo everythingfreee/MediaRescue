@@ -16,6 +16,7 @@ import '../screens/preview/immersive_media_viewer_screen.dart';
 import '../screens/preview/audio_player_screen.dart';
 import '../screens/preview/pdf_viewer_screen.dart';
 import '../screens/large_files/large_files_screen.dart';
+import '../screens/hidden_media/hidden_media_screen.dart';
 import '../screens/gallery/gallery_screen.dart';
 import '../providers/storage_provider.dart';
 import '../providers/scanner_provider.dart';
@@ -47,9 +48,18 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const PermissionScreen(),
       ),
       // Large files lives outside the shell so it gets a full-screen treatment
+      // It is always opened with context.push(...) so the shell (and the
+      // screen the user came from) stays alive underneath — Back then simply
+      // pops back to the originating screen. See LargeFilesScreen._goBack.
       GoRoute(
         path: '/large-files',
         builder: (context, state) => const LargeFilesScreen(),
+      ),
+      // Hidden Media — same full-screen, pushed-on-top treatment as Large
+      // Files so Back returns to the screen the user came from.
+      GoRoute(
+        path: '/hidden-media',
+        builder: (context, state) => const HiddenMediaScreen(),
       ),
       // About / Contact / Privacy policy live outside the shell so they are
       // presented as normal full-screen pages with working back navigation.
