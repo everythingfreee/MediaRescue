@@ -21,11 +21,8 @@ class AboutScreen extends StatelessWidget {
           // ── App identity ───────────────────────────────────────────────
           Column(
             children: [
-              Icon(
-                Icons.folder_special,
-                size: 96,
-                color: theme.colorScheme.primary,
-              ),
+              Image(image:  
+              AssetImage('assets/images/icon.png'), width: 96, height: 96),
               const SizedBox(height: 16),
               Text('MediaRescue', style: theme.textTheme.headlineMedium),
               const SizedBox(height: 4),
