@@ -50,6 +50,18 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+                                                                <!-- Shizuku integration (optional Advanced Scanning).
+             Required by the official Shizuku API so MediaRescue can acquire
+             the Shizuku binder. This is the exact configuration documented
+             by RikkaApps/Shizuku-API; it is used ONLY by the optional
+             Advanced Scanner feature and never affects the normal scanner. -->
+        <provider
+            android:name="rikka.shizuku.ShizukuProvider"
+            android:authorities="${applicationId}.shizuku"
+            android:enabled="true"
+            android:exported="true"
+            android:multiprocess="false"
+            android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

@@ -96,6 +96,12 @@ class HomeScreen extends ConsumerWidget {
                         onTap: () => context.push('/hidden-media'),
                       ),
                       _QuickActionTile(
+                        icon: Icons.travel_explore,
+                        label: 'Advanced Scanning',
+                        color: colorScheme.primaryContainer,
+                        onTap: () => context.push('/advanced-scan'),
+                      ),
+                      _QuickActionTile(
                         icon: Icons.search,
                         label: 'Search',
                         color: colorScheme.secondaryContainer,

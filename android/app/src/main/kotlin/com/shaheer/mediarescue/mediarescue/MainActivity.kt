@@ -38,6 +38,12 @@ import org.json.JSONObject
 class MainActivity : FlutterActivity() {
     private val CHANNEL = "com.shaheer.mediarescue/storage"
     private val SCAN_EVENTS = "com.shaheer.mediarescue/scan_events"
+
+    // ── Shizuku Advanced Scanning (optional, fully independent feature) ──────
+    private val ADVANCED_SCAN_CHANNEL = "com.shaheer.mediarescue/advanced_scan"
+    private val ADVANCED_SCAN_EVENTS = "com.shaheer.mediarescue/advanced_scan_events"
+    private var advancedScanSink: EventChannel.EventSink? = null
+
     private val REQUEST_CODE_STORAGE_PERMISSION = 2001
 
     private val executor = Executors.newSingleThreadExecutor()
@@ -88,6 +94,34 @@ class MainActivity : FlutterActivity() {
                 }
             }
 
+        // Keep Shizuku controls on the dedicated channel used by
+        // AdvancedScanService. The normal storage channel stays independent.
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, ADVANCED_SCAN_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "getShizukuState" -> result.success(ShizukuManager.INSTANCE.getStateMap(this))
+                    "requestShizukuPermission" -> ShizukuManager.INSTANCE.requestPermission(result)
+                    "startAdvancedScan" -> {
+                        ShizukuManager.INSTANCE.startAdvancedScan()
+                        result.success(true)
+                    }
+                    "stopAdvancedScan" -> {
+                        ShizukuManager.INSTANCE.stopAdvancedScan()
+                        result.success(true)
+                    }
+                    "copyAdvancedFile" -> {
+                        val source = call.argument<String>("sourcePath")
+                        val destination = call.argument<String>("destinationPath")
+                        val overwrite = call.argument<Boolean>("overwrite") ?: false
+                        result.success(
+                            source != null && destination != null &&
+                                ShizukuManager.INSTANCE.copyAdvancedFile(source, destination, overwrite),
+                        )
+                    }
+                    else -> result.notImplemented()
+                }
+            }
+
         // ── Event channel for scan progress streaming ─────────────────────────
         EventChannel(flutterEngine.dartExecutor.binaryMessenger, SCAN_EVENTS)
             .setStreamHandler(object : EventChannel.StreamHandler {
@@ -99,6 +133,33 @@ class MainActivity : FlutterActivity() {
                     scanEventSink = null
                 }
             })
+
+        // ── Event channel for Shizuku Advanced Scanning (optional feature) ────
+        // Mirrors the existing scan-events pattern but is fully independent:
+        // the normal scanner never touches this channel.
+        EventChannel(flutterEngine.dartExecutor.binaryMessenger, ADVANCED_SCAN_EVENTS)
+            .setStreamHandler(object : EventChannel.StreamHandler {
+                override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
+                    advancedScanSink = events
+                }
+
+                override fun onCancel(arguments: Any?) {
+                    advancedScanSink = null
+                }
+            })
+        // ShizukuManager posts every event onto the main thread before this
+        // sink is invoked (EventSink must only be used on the main thread).
+        ShizukuManager.INSTANCE.setEventSink { event -> advancedScanSink?.success(event) }
+        ShizukuManager.INSTANCE.register()
+    }
+
+    override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
+        // Release Shizuku listener/service registrations with the engine so
+        // nothing leaks across activity recreations.
+        ShizukuManager.INSTANCE.setEventSink(null)
+        ShizukuManager.INSTANCE.unregister()
+        advancedScanSink = null
+        super.cleanUpFlutterEngine(flutterEngine)
     }
 
     // ═══════════════════════════════════════════════════════════════════════════

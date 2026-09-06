@@ -38,6 +38,20 @@ class FileItem {
     );
   }
 
+  FileItem copyWith({String? path}) {
+    return FileItem(
+      path: path ?? this.path,
+      name: name,
+      extension: extension,
+      mimeType: mimeType,
+      size: size,
+      modifiedDate: modifiedDate,
+      isDirectory: isDirectory,
+      fileType: fileType,
+      parentDirectory: parentDirectory,
+    );
+  }
+
   bool get isImage => fileType == 'image';
   bool get isVideo => fileType == 'video';
   bool get isAudio => fileType == 'audio';

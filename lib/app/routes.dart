@@ -17,6 +17,8 @@ import '../screens/preview/audio_player_screen.dart';
 import '../screens/preview/pdf_viewer_screen.dart';
 import '../screens/large_files/large_files_screen.dart';
 import '../screens/hidden_media/hidden_media_screen.dart';
+import '../screens/advanced_scan/advanced_scan_screen.dart';
+import '../screens/advanced_scan/shizuku_guide_screen.dart';
 import '../screens/gallery/gallery_screen.dart';
 import '../providers/storage_provider.dart';
 import '../providers/scanner_provider.dart';
@@ -60,6 +62,16 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/hidden-media',
         builder: (context, state) => const HiddenMediaScreen(),
+      ),
+      // Advanced Scanning (optional Shizuku feature) — pushed on top like the
+      // other full-screen routes so Back returns to the originating screen.
+      GoRoute(
+        path: '/advanced-scan',
+        builder: (context, state) => const AdvancedScanScreen(),
+      ),
+      GoRoute(
+        path: '/shizuku-guide',
+        builder: (context, state) => const ShizukuGuideScreen(),
       ),
       // About / Contact / Privacy policy live outside the shell so they are
       // presented as normal full-screen pages with working back navigation.

@@ -20,6 +20,12 @@ android {
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
+    buildFeatures {
+        // Enable AIDL compilation for the Shizuku Advanced Scanner interface
+        // (app/src/main/aidl/.../IAdvancedScanner.aidl).
+        aidl = true
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -69,4 +75,11 @@ flutter {
 dependencies {
     // Core library desugaring for flutter_local_notifications.
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
+
+    // ── Shizuku (optional Advanced Scanning) ─────────────────────────────────
+    // Official Shizuku API + provider. Used ONLY by the optional Shizuku-based
+    // Advanced Scanner (Android/data + Android/obb). The normal MediaRescue
+    // scanner never touches these APIs.
+    implementation("dev.rikka.shizuku:api:13.1.5")
+    implementation("dev.rikka.shizuku:provider:13.1.5")
 }

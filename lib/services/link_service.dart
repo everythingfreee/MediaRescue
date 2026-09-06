@@ -19,6 +19,15 @@ class LinkService {
   static const String githubIssuesUrl =
       'https://github.com/everythingfreee/MediaRescue/issues';
 
+  /// Official Shizuku Play Store page (used only by the optional
+  /// Advanced Scanning setup guide).
+  static const String shizukuPlayStoreUrl =
+      'https://play.google.com/store/apps/details?id=moe.shizuku.privileged.api';
+
+  /// Official Shizuku GitHub releases page.
+  static const String shizukuGitHubUrl =
+      'https://github.com/RikkaApps/Shizuku/releases';
+
   /// Official (canonical) hosted Privacy Policy.
   static const String privacyPolicyUrl =
       'https://everythingfreee.github.io/Apps-Privacy-Policy/'
@@ -43,6 +52,24 @@ class LinkService {
       // Fall through to the web URL.
     }
     return openUrl(playStoreUrl);
+  }
+
+  /// Opens the official Shizuku page in the Google Play Store application
+  /// when available, falling back to the Play Store website in the browser.
+  /// Used only by the optional Advanced Scanning setup guide.
+  static Future<bool> openShizukuPlayStore() async {
+    final marketUri =
+        Uri.parse('market://details?id=moe.shizuku.privileged.api');
+    try {
+      if (await canLaunchUrl(marketUri)) {
+        final opened =
+            await launchUrl(marketUri, mode: LaunchMode.externalApplication);
+        if (opened) return true;
+      }
+    } catch (_) {
+      // Fall through to the web URL.
+    }
+    return openUrl(shizukuPlayStoreUrl);
   }
 
   /// Opens an http(s) URL in the default browser.

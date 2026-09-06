@@ -73,10 +73,9 @@ class _PermissionScreenState extends ConsumerState<PermissionScreen>
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Icon(
-                Icons.folder_special,
-                size: 100,
-                color: theme.colorScheme.primary,
+              Image.asset(
+                'assets/images/icon.png',
+                height: 110,
               ),
               const SizedBox(height: 32),
               Text(

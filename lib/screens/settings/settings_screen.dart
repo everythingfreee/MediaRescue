@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../providers/storage_provider.dart';
 import '../../providers/scanner_provider.dart';
 import '../../providers/rescue_provider.dart';
+import '../../providers/advanced_scan_provider.dart';
 import '../../services/notification_service.dart';
 import '../../app/app.dart' show themeModeProvider;
 
@@ -72,6 +73,9 @@ class SettingsScreen extends ConsumerWidget {
             title: const Text('Large Files'),
             onTap: () => context.push('/large-files'),
           ),
+          const Divider(),
+          _SectionHeader(label: 'Advanced Scanning'),
+          const _AdvancedScanningSection(),
           const Divider(),
           _SectionHeader(label: 'About'),
           ListTile(
@@ -427,8 +431,60 @@ class _UpdateNotificationsTileState extends State<_UpdateNotificationsTile> {
         'Receive announcements when a new version is available '
         '(Firebase Cloud Messaging).',
       ),
-      value: _enabled ?? false,
+            value: _enabled ?? false,
       onChanged: _enabled == null ? null : _onChanged,
     );
+  }
+}
+
+/// Settings section for the OPTIONAL Shizuku-based Advanced Scanning feature.
+///
+/// Shows the live Shizuku status (re-read from the advanced scan controller),
+/// and opens the Advanced Scanning screen or the setup guide.
+class _AdvancedScanningSection extends ConsumerWidget {
+  const _AdvancedScanningSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Re-evaluate status on every entry so the label is never stale after a
+    // Shizuku restart / permission grant / revocation.
+    ref.watch(advancedScanProvider);
+    final status = ref.read(advancedScanProvider);
+    final shizukuStatus = status.shizukuStatus;
+
+    return Column(
+      children: [
+        ListTile(
+          leading: const Icon(Icons.travel_explore),
+          title: const Text('Advanced Scanning'),
+          subtitle: Text(_statusLabel(shizukuStatus),
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+          onTap: () => context.push('/advanced-scan'),
+        ),
+        ListTile(
+          leading: const Icon(Icons.book_outlined),
+          title: const Text('Shizuku Setup Guide'),
+          subtitle: const Text('How to install, start and authorize Shizuku'),
+          onTap: () => context.push('/shizuku-guide'),
+        ),
+      ],
+    );
+  }
+
+    String _statusLabel(ShizukuStatus status) {
+    return switch (status) {
+      ShizukuStatus.authorized || ShizukuStatus.serviceConnected => 'Ready',
+      ShizukuStatus.unavailable => 'Shizuku not installed',
+      ShizukuStatus.binderNotReceived => 'Waiting for Shizuku connection',
+      ShizukuStatus.binderDisconnected => 'Shizuku connection lost',
+      ShizukuStatus.notRunning => 'Shizuku not running',
+      ShizukuStatus.error => 'Error — tap to check',
+      ShizukuStatus.unknown => 'Advanced Scanning',
+      ShizukuStatus.permissionDenied => 'Permission denied',
+      ShizukuStatus.waitingForPermission => 'Waiting for authorization',
+    };
   }
 }

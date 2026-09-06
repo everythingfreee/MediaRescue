@@ -378,6 +378,7 @@ mediarescue/
 │   │   ├── hidden_media.dart                 # HiddenMediaReason (5 signals) + HiddenMediaItem + combined-evidence classifier
 │   │   └── smart_filter.dart                 # SmartFilterState + filter enums (type, size, date, location)
 │   ├── providers/                            # Riverpod state management
+│   │   ├── advanced_scan_provider.dart       # Shizuku Advanced Scan: state + lifecycle + read-only results
 │   │   ├── browser_provider.dart             # Current directory navigation state (incl. "Open Location" resetTo)
 │   │   ├── filter_provider.dart              # smartFilterProvider + applySmartFilters() filter engine (in-memory, no re-scan)
 │   │   ├── gallery_provider.dart             # Gallery folder selection, grouping, filter/sort state
@@ -388,6 +389,9 @@ mediarescue/
 │   │   └── storage_provider.dart             # StorageService provider wiring
 │   ├── screens/
 │   │   ├── scaffold_with_nav_bar.dart        # Root scaffold with bottom navigation (Home/Browse/Gallery/Search/Settings)
+│   │   ├── advanced_scan/                    # OPTIONAL Shizuku Advanced Scanner screens
+│   │   │   ├── advanced_scan_screen.dart     # Shizuku status, scan controls, progress, lazy read-only results list
+│   │   │   └── shizuku_guide_screen.dart     # In-app text setup guide with official source links + video placeholder
 │   │   ├── browse/
 │   │   │   └── browse_screen.dart            # Folder browser: breadcrumbs, navigation, multi-select, previews
 │   │   ├── gallery/
@@ -397,7 +401,7 @@ mediarescue/
 │   │   ├── hidden_media/
 │   │   │   └── hidden_media_screen.dart      # Hidden Media: results with per-item reasons, List/Large-Icons views, search + Smart Filters, "Why hidden?" sheet, empty states
 │   │   ├── home/
-│   │   │   └── home_screen.dart              # Home: scan progress, storage summary, quick actions (Hidden Media, Large Files…), cleanup suggestions
+│   │   │   └── home_screen.dart              # Home: scan progress, storage summary, quick actions (Hidden Media, Large Files, Advanced Scanning…), cleanup suggestions
 │   │   ├── large_files/
 │   │   │   └── large_files_screen.dart       # Large Files: size threshold filter, multi-select delete, file actions
 │   │   ├── onboarding/
@@ -417,6 +421,7 @@ mediarescue/
 │   │       └── privacy_policy_screen.dart    # In-app privacy policy summary
 │   ├── services/
 │   │   ├── storage_service.dart              # StorageService abstraction + MethodChannel implementation
+│   │   ├── advanced_scan_service.dart        # Shizuku Advanced Scanner MethodChannel + EventChannel bridge (dedicated channels)
 │   │   ├── notification_service.dart         # FCM listeners, topic subscription, foreground notifications
 │   │   ├── update_service.dart               # Google Play In-App Update check (Flexible update flow)
 │   │   └── link_service.dart                 # URL/email launch helpers
@@ -539,6 +544,49 @@ git push --set-upstream origin feat/your-feature
 ---
 
 ## Changelog
+
+### v1.0.6 — Shizuku-Based Advanced Scanning
+
+**Added: Shizuku-Based Advanced Scanning**
+
+- New optional Advanced Scanning feature that uses [Shizuku](https://github.com/RikkaApps/Shizuku) to read `Android/data` and `Android/obb` directories that MediaRescue cannot normally access.
+- Advanced Scanning is **completely optional** — MediaRescue works exactly the same if Shizuku is not installed, not running, or authorization is denied. The existing normal scanner is untouched and never routed through Shizuku.
+- The scan roots are hard-limited and read-only: only `/storage/emulated/0/Android/data` and `/storage/emulated/0/Android/obb`. The privileged `MediaRescueUserService` runs in the Shizuku execution context and only exposes deliberately narrow, read-only AIDL operations (existence check, directory listing, recursive traversal, metadata: name, path, size, modified time).
+- **Path security**: the user service rejects any path outside the two approved roots (canonical-path check, no symlinks/escapes), and the Flutter layer passes no paths — roots are fixed in native code. No delete, rename, move, write, chmod, chown, or shell execution is exposed.
+- **Progress & cancellation**: the scan runs off the UI thread, streams throttled progress events, and can be cancelled at any time. If Shizuku disconnects mid-scan, the scan stops gracefully with a clear explanation — the app never crashes.
+- **Setup guide**: an in-app, text-based Shizuku Setup Guide explains installation, starting the service, and granting authorization. Official Shizuku sources are linked; MediaRescue never bundles or auto-installs Shizuku.
+
+**Added: Advanced Scanning UI**
+
+- New **Advanced Scanning** tile in Home → Quick Actions, matching the existing tile style (icon + label, color from the theme).
+- Dedicated **Advanced Scanning** screen: shows live Shizuku status (Not installed / Not running / Authorized / Ready / …), a **Start Advanced Scan** button, progress counters (files found, errors, per-root status), a cancel button, and a lazy-scrolling read-only results list (name, relative path, size/type).
+- New **Settings → Advanced Scanning** section showing live Shizuku status, plus a link to the setup guide.
+
+**Updated: Advanced Scanning cache and workflow**
+
+- Advanced Scanning restores files already copied to its local preview cache when the page opens, so cached results remain available even when Shizuku is disconnected.
+- A fresh scan is performed only when the user presses **Rescan**; the Shizuku connection indicator and Rescan control remain pinned at the bottom of the screen while results scroll.
+- Cached files reuse their accessible local copies for previews, thumbnails and rescue operations without requiring another Shizuku transfer.
+- Preview preparation shows a loading indicator, grid selection shows a checkmark, and rescued files are indexed immediately through Android's media refresh API so they appear in Gallery without delay.
+
+**Files added**
+
+- `lib/services/advanced_scan_service.dart` — dedicated MethodChannel + EventChannel bridge for the optional feature (independent channel names, never touches the normal scanner's channels).
+- `lib/providers/advanced_scan_provider.dart` — Riverpod controller + `AdvancedScanState` (shizuku status, scan lifecycle, accumulated read-only results, progress counts, per-root statuses).
+- `lib/screens/advanced_scan/advanced_scan_screen.dart` — the Advanced Scanning screen (status, progress, results list, cancel).
+- `lib/screens/advanced_scan/shizuku_guide_screen.dart` — in-app text setup guide with official source links and a video-placeholder card for future extension.
+- `android/app/src/main/aidl/com/shaheer/mediarescue/shizuku/IAdvancedScanner.aidl` — narrow read-only AIDL interface.
+- `android/app/src/main/aidl/com/shaheer/mediarescue/shizuku/IAdvancedScannerCallback.aidl` — `oneway` callback for progress/results.
+- `android/app/src/main/kotlin/com/shaheer/mediarescue/mediarescue/AdvancedScannerUserService.kt` — privileged user service implementing the AIDL, hard-limited to the two read-only roots with path validation on every operation.
+- `android/app/src/main/kotlin/com/shaheer/mediarescue/mediarescue/ShizukuManager.kt` — Shizuku availability/authorization detection, user-service lifecycle, binder-death handling, and state → Flutter bridge.
+
+**Files modified**
+
+- `android/app/src/main/AndroidManifest.xml` — registered the user service (non-exported) and the official `ShizukuProvider` per the Shizuku API docs.
+- `lib/app/routes.dart` — added `/advanced-scan` and `/shizuku-guide` full-screen routes (pushed on top of the shell like Large Files, so Back returns to the originating screen).
+- `lib/screens/home/home_screen.dart` — added the Advanced Scanning quick-action tile.
+- `lib/screens/settings/settings_screen.dart` — added the Advanced Scanning settings section.
+- `pubspec.yaml` — version bumped to `1.0.6+7`.
 
 ### v1.0.5 — Hidden Media, Navigation Stability & File Actions
 
