@@ -16,7 +16,6 @@ Why this project matters: it's lightweight, open-source (MIT), and designed to r
 - [Supported Platforms](#supported-platforms)
 - [Installation](#installation)
   - [From Release (APK)](#from-release-apk)
-  - [From F-Droid](#from-f-droid)
   - [From Google Play Store](#from-google-play-store)
 - [Build from Source](#build-from-source)
   - [Prerequisites](#prerequisites)
@@ -182,19 +181,10 @@ MediaRescue is distributed through multiple channels — pick whichever works be
 
 > Tip: Always verify the APK checksum listed in the release notes to ensure authenticity.
 
-### From F-Droid
-
-> Status: Planned
-
-Once published, MediaRescue will be available directly from the [F-Droid](https://f-droid.org) store. F-Droid users can install it like any other app:
-
-1. Install the [F-Droid client](https://f-droid.org/) (if not already installed).
-2. Search for **"MediaRescue"**.
-3. Tap **Install**.
 
 ### From Google Play Store
 
-> Status: Planned
+> Status: Closed Testing
 
 MediaRescue will be published on the Google Play Store as a free, open-source app. Search for **"MediaRescue"** once it's live.
 
