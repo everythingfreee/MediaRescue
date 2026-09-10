@@ -89,6 +89,8 @@ class MainActivity : FlutterActivity() {
                     "saveRescueSettings" -> handleSaveRescueSettings(call, result)
                     "getAppPrefBool" -> handleGetAppPrefBool(call, result)
                     "setAppPrefBool" -> handleSetAppPrefBool(call, result)
+                    "getAppPrefString" -> handleGetAppPrefString(call, result)
+                    "setAppPrefString" -> handleSetAppPrefString(call, result)
                     "getMediaStorePaths" -> handleGetMediaStorePaths(result)
                     "startScan" -> handleStartScan(result)
                     "stopScan" -> {
@@ -1260,6 +1262,32 @@ class MainActivity : FlutterActivity() {
         }
         val value = call.argument<Boolean>("value") ?: false
         appPrefs.edit().putBoolean(key, value).apply()
+        result.success(true)
+    }
+
+    private fun handleGetAppPrefString(call: MethodCall, result: MethodChannel.Result) {
+        val key = call.argument<String>("key") ?: ""
+        // Return null when the key doesn't exist so Flutter can detect
+        // "never set" and fall back to the default theme.
+        if (appPrefs.contains(key)) {
+            result.success(appPrefs.getString(key, null))
+        } else {
+            result.success(null)
+        }
+    }
+
+    private fun handleSetAppPrefString(call: MethodCall, result: MethodChannel.Result) {
+        val key = call.argument<String>("key")
+        if (key.isNullOrEmpty()) {
+            result.error("PREF_ERROR", "Missing preference key", null)
+            return
+        }
+        val value = call.argument<String>("value")
+        if (value == null) {
+            result.error("PREF_ERROR", "Missing preference value", null)
+            return
+        }
+        appPrefs.edit().putString(key, value).apply()
         result.success(true)
     }
 

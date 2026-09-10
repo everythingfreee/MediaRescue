@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mediarescue/providers/storage_provider.dart';
 import 'routes.dart';
 import 'theme/app_theme.dart';
+
+export '../providers/storage_provider.dart' show themeModeProvider;
 
 /// Global route observer used to detect when a screen is covered/uncovered
 /// (e.g. to pause video playback when switching tabs).
@@ -11,16 +14,6 @@ final RouteObserver<ModalRoute<void>> routeObserver =
 /// Global navigator key used by non-UI services (update dialog, notifications)
 /// to show Material dialogs from anywhere in the app.
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
-
-/// Global theme mode — a Riverpod 3.x Notifier
-class ThemeModeNotifier extends Notifier<ThemeMode> {
-  @override
-  ThemeMode build() => ThemeMode.system;
-  void set(ThemeMode mode) => state = mode;
-}
-
-final themeModeProvider =
-    NotifierProvider<ThemeModeNotifier, ThemeMode>(ThemeModeNotifier.new);
 
 class MediaRescueApp extends ConsumerWidget {
   const MediaRescueApp({super.key});

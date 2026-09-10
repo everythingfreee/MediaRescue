@@ -82,6 +82,13 @@ abstract class StorageService {
   /// Writes a boolean app preference natively (SharedPreferences).
   Future<bool> setAppPrefBool(String key, bool value);
 
+  /// Reads a string app preference stored natively (SharedPreferences).
+  /// Returns null when the key has never been set.
+  Future<String?> getAppPrefString(String key);
+
+  /// Writes a string app preference natively (SharedPreferences).
+  Future<bool> setAppPrefString(String key, String value);
+
   /// Returns the set of file paths currently surfaced through Android's
   /// MediaStore (its visible media index). Returns `null` when the query
   /// fails or the platform API is unavailable — callers must treat that as
@@ -446,6 +453,28 @@ class MethodChannelStorageService implements StorageService {
     try {
       final bool? result = await _channel
           .invokeMethod('setAppPrefBool', {'key': key, 'value': value});
+      return result ?? false;
+    } on PlatformException catch (_) {
+      return false;
+    }
+  }
+
+  @override
+  Future<String?> getAppPrefString(String key) async {
+    try {
+      final String? result =
+          await _channel.invokeMethod('getAppPrefString', {'key': key});
+      return result; // null = key not set
+    } on PlatformException catch (_) {
+      return null;
+    }
+  }
+
+  @override
+  Future<bool> setAppPrefString(String key, String value) async {
+    try {
+      final bool? result = await _channel
+          .invokeMethod('setAppPrefString', {'key': key, 'value': value});
       return result ?? false;
     } on PlatformException catch (_) {
       return false;

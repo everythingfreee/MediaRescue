@@ -287,7 +287,7 @@ class _RescueDestinationSection extends ConsumerWidget {
     return Column(
       children: [
         SwitchListTile(
-          secondary: const HugeIcon(icon: HugeIcons.strokeRoundedFourSquare),
+          secondary: const HugeIcon(icon: HugeIcons.strokeRoundedFolderMoveIn),
           title: const Text('Single folder for all rescues'),
           subtitle: const Text('Save all rescued files into one directory'),
           value: settings.singleDestination,

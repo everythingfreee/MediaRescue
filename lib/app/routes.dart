@@ -140,9 +140,15 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) =>
             PdfViewerScreen(item: state.extra as dynamic),
       ),
-      StatefulShellRoute.indexedStack(
+      StatefulShellRoute(
         builder: (context, state, navigationShell) {
-          return ScaffoldWithNavBar(navigationShell: navigationShell);
+          return navigationShell;
+        },
+        navigatorContainerBuilder: (context, navigationShell, children) {
+          return ScaffoldWithNavBar(
+            navigationShell: navigationShell,
+            children: children,
+          );
         },
         branches: [
           StatefulShellBranch(

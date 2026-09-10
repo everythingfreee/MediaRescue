@@ -1,22 +1,87 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
 import '../app/theme/app_colors.dart';
 import '../app/theme/app_radius.dart';
 import '../app/theme/app_spacing.dart';
 
-class ScaffoldWithNavBar extends StatelessWidget {
+class ScaffoldWithNavBar extends StatefulWidget {
   final StatefulNavigationShell navigationShell;
+  final List<Widget> children;
 
   const ScaffoldWithNavBar({
     super.key,
     required this.navigationShell,
+    required this.children,
   });
+
+  @override
+  State<ScaffoldWithNavBar> createState() => _ScaffoldWithNavBarState();
+}
+
+class _ScaffoldWithNavBarState extends State<ScaffoldWithNavBar> {
+  late final PageController _pageController;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(
+      initialPage: widget.navigationShell.currentIndex,
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant ScaffoldWithNavBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.navigationShell.currentIndex != oldWidget.navigationShell.currentIndex) {
+      if (_pageController.hasClients &&
+          _pageController.page?.round() != widget.navigationShell.currentIndex) {
+        _pageController.animateToPage(
+          widget.navigationShell.currentIndex,
+          duration: const Duration(milliseconds: 350),
+          curve: Curves.easeOutCubic,
+        );
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  void _onPageChanged(int index) {
+    if (index != widget.navigationShell.currentIndex) {
+      HapticFeedback.selectionClick();
+      widget.navigationShell.goBranch(
+        index,
+        initialLocation: false,
+      );
+    }
+  }
+
+  void _onTabTapped(int index) {
+    HapticFeedback.selectionClick();
+    if (index == widget.navigationShell.currentIndex) {
+      widget.navigationShell.goBranch(
+        index,
+        initialLocation: true,
+      );
+    } else {
+      _pageController.animateToPage(
+        index,
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeOutCubic,
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final currentIndex = navigationShell.currentIndex;
+    final currentIndex = widget.navigationShell.currentIndex;
 
     final items = [
       (HugeIcons.strokeRoundedHome01, 'Home'),
@@ -30,8 +95,8 @@ class ScaffoldWithNavBar extends StatelessWidget {
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
-        if (navigationShell.currentIndex != 0) {
-          navigationShell.goBranch(0);
+        if (widget.navigationShell.currentIndex != 0) {
+          _onTabTapped(0);
         } else {
           if (context.canPop()) {
             context.pop();
@@ -39,7 +104,12 @@ class ScaffoldWithNavBar extends StatelessWidget {
         }
       },
       child: Scaffold(
-        body: navigationShell,
+        body: PageView(
+          controller: _pageController,
+          physics: const BouncingScrollPhysics(),
+          onPageChanged: _onPageChanged,
+          children: widget.children,
+        ),
         bottomNavigationBar: SafeArea(
           child: Container(
             margin: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.md),
@@ -63,43 +133,63 @@ class ScaffoldWithNavBar extends StatelessWidget {
                 final isSelected = currentIndex == index;
 
                 return InkWell(
-                  onTap: () {
-                    navigationShell.goBranch(
-                      index,
-                      initialLocation: index == navigationShell.currentIndex,
-                    );
-                  },
+                  onTap: () => _onTabTapped(index),
                   borderRadius: AppRadius.borderPill,
                   child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.fastOutSlowIn,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isSelected ? AppSpacing.md : AppSpacing.sm,
+                      vertical: AppSpacing.sm,
+                    ),
                     decoration: BoxDecoration(
                       color: isSelected
-                          ? theme.colorScheme.primary.withOpacity(0.12)
+                          ? theme.colorScheme.primary.withOpacity(0.14)
                           : Colors.transparent,
                       borderRadius: AppRadius.borderPill,
                     ),
                     child: Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        HugeIcon(
-                          icon: icon,
-                          color: isSelected
-                              ? theme.colorScheme.primary
-                              : (theme.brightness == Brightness.dark
-                                  ? AppColors.darkTextSecondary
-                                  : AppColors.lightTextSecondary),
-                          size: 22,
+                        AnimatedScale(
+                          scale: isSelected ? 1.12 : 1.0,
+                          duration: const Duration(milliseconds: 250),
+                          curve: Curves.easeOutBack,
+                          child: HugeIcon(
+                            icon: icon,
+                            color: isSelected
+                                ? theme.colorScheme.primary
+                                : (theme.brightness == Brightness.dark
+                                    ? AppColors.darkTextSecondary
+                                    : AppColors.lightTextSecondary),
+                            size: 22,
+                          ),
                         ),
-                        if (isSelected) ...[
-                          const SizedBox(width: AppSpacing.xs),
-                          Text(
-                            label,
-                            style: theme.textTheme.labelLarge?.copyWith(
-                              color: theme.colorScheme.primary,
-                              fontWeight: FontWeight.w700,
+                        ClipRect(
+                          child: AnimatedSize(
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.fastOutSlowIn,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (isSelected) ...[
+                                  const SizedBox(width: AppSpacing.xs),
+                                  AnimatedOpacity(
+                                    duration: const Duration(milliseconds: 250),
+                                    opacity: isSelected ? 1.0 : 0.0,
+                                    child: Text(
+                                      label,
+                                      style: theme.textTheme.labelLarge?.copyWith(
+                                        color: theme.colorScheme.primary,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
                           ),
-                        ],
+                        ),
                       ],
                     ),
                   ),
