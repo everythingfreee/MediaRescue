@@ -545,6 +545,31 @@ git push --set-upstream origin feat/your-feature
 
 ## Changelog
 
+### v1.0.7 — Premium UI & Custom Notifications
+
+**✨ Redesigned User Interface**
+
+* Completely refreshed the MediaRescue UI with a modern, premium visual design.
+* Updated screens, cards, buttons, navigation, settings, dialogs, bottom sheets, and media previews.
+* Improved light and dark themes with a refined color system and consistent visual styling.
+* Updated icons throughout the application using HugeIcons.
+* Improved spacing, typography, visual hierarchy, and overall consistency.
+* Improved media browsing, file details, selection, and preview interfaces.
+
+**🔔 Custom Notification Sound**
+
+* Added a custom notification sound for MediaRescue notifications.
+* Notifications now have a recognizable MediaRescue sound while respecting Android notification settings.
+
+**🐛 Bug Fixes & Improvements**
+
+* Fixed various UI and navigation issues.
+* Improved stability across different screens and application states.
+* Improved responsiveness and visual consistency.
+* Fixed minor issues discovered during development and testing.
+* Preserved existing scanning, rescue, preview, storage, and Shizuku Advanced Scanning functionality.
+
+
 ### v1.0.6 — Shizuku-Based Advanced Scanning
 
 **Added: Shizuku-Based Advanced Scanning**
