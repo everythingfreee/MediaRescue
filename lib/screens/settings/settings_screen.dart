@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../providers/storage_provider.dart';
-import '../../providers/scanner_provider.dart';
-import '../../providers/rescue_provider.dart';
-import '../../providers/advanced_scan_provider.dart';
-import '../../services/notification_service.dart';
+import 'package:hugeicons/hugeicons.dart';
+
 import '../../app/app.dart' show themeModeProvider;
+import '../../app/theme/app_colors.dart';
+import '../../app/theme/app_spacing.dart';
+import '../../providers/advanced_scan_provider.dart';
+import '../../providers/rescue_provider.dart';
+import '../../providers/scanner_provider.dart';
+import '../../providers/storage_provider.dart';
+import '../../services/notification_service.dart';
+import '../../widgets/app_card.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -18,79 +23,166 @@ class SettingsScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
+        padding: AppSpacing.pagePadding,
         children: [
-          _SectionHeader(label: 'Appearance'),
-          _ThemeTile(
-            label: 'System default',
-            mode: ThemeMode.system,
-            current: themeMode,
-            ref: ref,
+          const _SectionHeader(label: 'Appearance'),
+          const SizedBox(height: AppSpacing.sm),
+          AppCard(
+            child: Column(
+              children: [
+                _ThemeTile(
+                  label: 'System default',
+                  mode: ThemeMode.system,
+                  current: themeMode,
+                  ref: ref,
+                ),
+                const Divider(),
+                _ThemeTile(
+                  label: 'Light mode',
+                  mode: ThemeMode.light,
+                  current: themeMode,
+                  ref: ref,
+                ),
+                const Divider(),
+                _ThemeTile(
+                  label: 'Dark mode',
+                  mode: ThemeMode.dark,
+                  current: themeMode,
+                  ref: ref,
+                ),
+              ],
+            ),
           ),
-          _ThemeTile(
-            label: 'Light',
-            mode: ThemeMode.light,
-            current: themeMode,
-            ref: ref,
+          const SizedBox(height: AppSpacing.xl),
+
+          const _SectionHeader(label: 'Storage & Access'),
+          const SizedBox(height: AppSpacing.sm),
+          AppCard(
+            child: Column(
+              children: [
+                ListTile(
+                  leading: const HugeIcon(
+                    icon: HugeIcons.strokeRoundedShieldPlus,
+                    color: AppColors.primary,
+                  ),
+                  title: const Text('Manage Storage Access'),
+                  subtitle: const Text(
+                    'Open system settings for All files access',
+                  ),
+                  onTap: () async {
+                    final storageService = ref.read(storageServiceProvider);
+                    await storageService.requestAccess();
+                  },
+                ),
+                const Divider(),
+                ListTile(
+                  leading: const HugeIcon(
+                    icon: HugeIcons.strokeRoundedRefresh,
+                    color: AppColors.secondary,
+                  ),
+                  title: const Text('Rescan Storage'),
+                  subtitle: const Text('Re-index all accessible media files'),
+                  onTap: () {
+                    ref.read(scanControllerProvider.notifier).startScan();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Rescanning storage...')),
+                    );
+                  },
+                ),
+              ],
+            ),
           ),
-          _ThemeTile(
-            label: 'Dark',
-            mode: ThemeMode.dark,
-            current: themeMode,
-            ref: ref,
+          const SizedBox(height: AppSpacing.xl),
+
+          const _SectionHeader(label: 'Rescue Destination'),
+          const SizedBox(height: AppSpacing.sm),
+          const AppCard(child: _RescueDestinationSection()),
+          const SizedBox(height: AppSpacing.xl),
+
+          const _SectionHeader(label: 'Notifications'),
+          const SizedBox(height: AppSpacing.sm),
+          const AppCard(child: _UpdateNotificationsTile()),
+          const SizedBox(height: AppSpacing.xl),
+
+          const _SectionHeader(label: 'Specialized Discovery'),
+          const SizedBox(height: AppSpacing.sm),
+          AppCard(
+            child: Column(
+              children: [
+                ListTile(
+                  leading: const HugeIcon(
+                    icon: HugeIcons.strokeRoundedHardDrive,
+                    color: AppColors.documents,
+                  ),
+                  title: const Text('Large Files'),
+                  subtitle: const Text(
+                    'Filter and manage large storage consumers',
+                  ),
+                  onTap: () => context.push('/large-files'),
+                ),
+                const Divider(),
+                const _AdvancedScanningSection(),
+              ],
+            ),
           ),
-          const Divider(),
-          _SectionHeader(label: 'Storage'),
-          ListTile(
-            leading: const Icon(Icons.security),
-            title: const Text('Manage Storage Access'),
-            subtitle: const Text('Open system settings for All files access'),
-            onTap: () async {
-              final storageService = ref.read(storageServiceProvider);
-              await storageService.requestAccess();
-            },
+          const SizedBox(height: AppSpacing.xl),
+
+          const _SectionHeader(label: 'About & Information'),
+          const SizedBox(height: AppSpacing.sm),
+          AppCard(
+            child: Column(
+              children: [
+                ListTile(
+                  leading: const HugeIcon(
+                    icon: HugeIcons.strokeRoundedInformationCircle,
+                    color: AppColors.primary,
+                  ),
+                  title: const Text('About MediaRescue'),
+                  subtitle: const Text('Version, resources and credits'),
+                  onTap: () => context.push('/about'),
+                ),
+                const Divider(),
+                ListTile(
+                  leading: const HugeIcon(
+                    icon: HugeIcons.strokeRoundedMail01,
+                    color: AppColors.secondary,
+                  ),
+                  title: const Text('Contact Support'),
+                  subtitle: const Text('Send feedback or report issues'),
+                  onTap: () => context.push('/contact'),
+                ),
+                const Divider(),
+                ListTile(
+                  leading: const HugeIcon(
+                    icon: HugeIcons.strokeRoundedLock,
+                    color: AppColors.other,
+                  ),
+                  title: const Text('Privacy Policy'),
+                  subtitle: const Text('How MediaRescue handles your data'),
+                  onTap: () => context.push('/privacy'),
+                ),
+              ],
+            ),
           ),
-          ListTile(
-            leading: const Icon(Icons.refresh),
-            title: const Text('Rescan Storage'),
-            subtitle: const Text('Re-index all accessible files'),
-            onTap: () {
-              ref.read(scanControllerProvider.notifier).startScan();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Rescanning storage...')),
-              );
-            },
-          ),
-          const Divider(),
-          _SectionHeader(label: 'Rescue Destination'),
-          const _RescueDestinationSection(),
-          const Divider(),
-          _SectionHeader(label: 'Notifications'),
-          const _UpdateNotificationsTile(),
-          const Divider(),
-          _SectionHeader(label: 'Navigation'),
-          ListTile(
-            leading: const Icon(Icons.data_usage),
-            title: const Text('Large Files'),
-            onTap: () => context.push('/large-files'),
-          ),
-          const Divider(),
-          _SectionHeader(label: 'Advanced Scanning'),
-          const _AdvancedScanningSection(),
-          const Divider(),
-          _SectionHeader(label: 'About'),
-          ListTile(
-            leading: const Icon(Icons.info_outline),
-            title: const Text('About MediaRescue'),
-            subtitle: const Text('Version, resources and links'),
-            onTap: () => context.push('/about'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.lock_outline),
-            title: const Text('Privacy Policy'),
-            subtitle: const Text('How MediaRescue handles your data and notifications'),
-            onTap: () => context.push('/privacy'),
-          ),
+          const SizedBox(height: AppSpacing.xxl),
         ],
+      ),
+    );
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  final String label;
+  const _SectionHeader({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      label.toUpperCase(),
+      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+        color: Theme.of(context).colorScheme.primary,
+        fontWeight: FontWeight.bold,
+        letterSpacing: 1.2,
       ),
     );
   }
@@ -111,19 +203,18 @@ class _ThemeTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isSelected = current == mode;
     return ListTile(
-      title: Text(label),
+      title: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
       leading: Icon(
-        current == mode ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-        color: current == mode ? Theme.of(context).colorScheme.primary : null,
+        isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+        color: isSelected ? Theme.of(context).colorScheme.primary : null,
       ),
       onTap: () => ref.read(themeModeProvider.notifier).set(mode),
     );
   }
 }
 
-/// Where rescued files are copied. Supports one folder for everything or a
-/// separate folder per media type. Each destination can be edited freely.
 class _RescueDestinationSection extends ConsumerWidget {
   const _RescueDestinationSection();
 
@@ -135,62 +226,88 @@ class _RescueDestinationSection extends ConsumerWidget {
     final tiles = settings.singleDestination
         ? [
             _DestinationTile(
-              icon: Icons.folder_special,
+              icon: HugeIcons.strokeRoundedFolder01,
               title: 'Rescue folder',
               path: settings.singlePath,
               onEdit: () => _editDestination(
-                  context, ref, 'Rescue folder', notifier.setSinglePath),
+                context,
+                ref,
+                'Rescue folder',
+                notifier.setSinglePath,
+              ),
             ),
           ]
         : [
             _DestinationTile(
-              icon: Icons.image_outlined,
+              icon: HugeIcons.strokeRoundedImage01,
               title: 'Images',
               path: settings.imagesPath,
               onEdit: () => _editDestination(
-                  context, ref, 'Images destination', notifier.setImagesPath),
+                context,
+                ref,
+                'Images destination',
+                notifier.setImagesPath,
+              ),
             ),
             _DestinationTile(
-              icon: Icons.videocam_outlined,
+              icon: HugeIcons.strokeRoundedVideo01,
               title: 'Videos',
               path: settings.videosPath,
               onEdit: () => _editDestination(
-                  context, ref, 'Videos destination', notifier.setVideosPath),
+                context,
+                ref,
+                'Videos destination',
+                notifier.setVideosPath,
+              ),
             ),
             _DestinationTile(
-              icon: Icons.audiotrack,
+              icon: HugeIcons.strokeRoundedMusicNote01,
               title: 'Audio',
               path: settings.audioPath,
               onEdit: () => _editDestination(
-                  context, ref, 'Audio destination', notifier.setAudioPath),
+                context,
+                ref,
+                'Audio destination',
+                notifier.setAudioPath,
+              ),
             ),
             _DestinationTile(
-              icon: Icons.insert_drive_file_outlined,
+              icon: HugeIcons.strokeRoundedFile01,
               title: 'Other files',
               path: settings.otherPath,
-              onEdit: () => _editDestination(context, ref,
-                  'Other files destination', notifier.setOtherPath),
+              onEdit: () => _editDestination(
+                context,
+                ref,
+                'Other files destination',
+                notifier.setOtherPath,
+              ),
             ),
           ];
 
     return Column(
       children: [
         SwitchListTile(
-          secondary: const Icon(Icons.category_outlined),
-          title: const Text('Single destination for everything'),
-          subtitle: const Text('Save all rescued files to one folder'),
+          secondary: const HugeIcon(icon: HugeIcons.strokeRoundedFourSquare),
+          title: const Text('Single folder for all rescues'),
+          subtitle: const Text('Save all rescued files into one directory'),
           value: settings.singleDestination,
           onChanged: notifier.setSingleDestination,
         ),
+        const Divider(),
         ...tiles,
+        const Divider(),
         ListTile(
-          leading: const Icon(Icons.restart_alt),
-          title: const Text('Reset to Defaults'),
+          leading: const HugeIcon(
+            icon: HugeIcons.strokeRoundedRefresh,
+            color: AppColors.error,
+          ),
+          title: const Text('Reset Destinations'),
           onTap: () {
             notifier.resetToDefaults();
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                  content: Text('Rescue destinations reset to defaults.')),
+                content: Text('Rescue destinations reset to defaults.'),
+              ),
             );
           },
         ),
@@ -208,18 +325,17 @@ class _RescueDestinationSection extends ConsumerWidget {
     final current = title.startsWith('Rescue folder')
         ? settings.singlePath
         : title.startsWith('Images')
-            ? settings.imagesPath
-            : title.startsWith('Videos')
-                ? settings.videosPath
-                : title.startsWith('Audio')
-                    ? settings.audioPath
-                    : settings.otherPath;
+        ? settings.imagesPath
+        : title.startsWith('Videos')
+        ? settings.videosPath
+        : title.startsWith('Audio')
+        ? settings.audioPath
+        : settings.otherPath;
     final saved = await showDialog<String>(
       context: context,
       builder: (ctx) => _DestinationDialog(title: title, current: current),
     );
     if (saved == null || saved.isEmpty) return;
-    // Best-effort: make sure the folder exists before the first rescue.
     await ref.read(storageServiceProvider).createDirectory(saved);
     onSave(saved);
   }
@@ -230,28 +346,8 @@ String _displayPath(String path) {
   return path.startsWith(prefix) ? path.substring(prefix.length) : path;
 }
 
-class _SectionHeader extends StatelessWidget {
-  final String label;
-  const _SectionHeader({required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 4),
-      child: Text(
-        label.toUpperCase(),
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: Theme.of(context).colorScheme.primary,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1.2,
-            ),
-      ),
-    );
-  }
-}
-
 class _DestinationTile extends StatelessWidget {
-  final IconData icon;
+  final List<List<dynamic>> icon;
   final String title;
   final String path;
   final VoidCallback onEdit;
@@ -266,14 +362,17 @@ class _DestinationTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      leading: Icon(icon),
-      title: Text(title),
+      leading: HugeIcon(
+        icon: icon,
+        color: Theme.of(context).colorScheme.primary,
+      ),
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
       subtitle: Text(
         _displayPath(path),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
-      trailing: const Icon(Icons.edit_outlined, size: 20),
+      trailing: const HugeIcon(icon: HugeIcons.strokeRoundedEdit02, size: 18),
       onTap: onEdit,
     );
   }
@@ -342,10 +441,10 @@ class _DestinationDialogState extends State<_DestinationDialog> {
             ),
             onSubmitted: (_) => _save(),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.md),
           Wrap(
-            spacing: 6,
-            runSpacing: 6,
+            spacing: AppSpacing.xs,
+            runSpacing: AppSpacing.xs,
             children: [
               for (final pick in _quickPicks)
                 ActionChip(
@@ -361,18 +460,12 @@ class _DestinationDialogState extends State<_DestinationDialog> {
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('Cancel'),
         ),
-        FilledButton(
-          onPressed: _save,
-          child: const Text('Save'),
-        ),
+        FilledButton(onPressed: _save, child: const Text('Save')),
       ],
     );
   }
 }
-/// Toggle for receiving MediaRescue update notifications (FCM topic
-/// `mediarescue-updates`). Toggling on requests notification permission when
-/// the system has not decided yet and subscribes to the topic; toggling off
-/// unsubscribes. Denied permission never blocks normal app usage.
+
 class _UpdateNotificationsTile extends StatefulWidget {
   const _UpdateNotificationsTile();
 
@@ -390,34 +483,41 @@ class _UpdateNotificationsTileState extends State<_UpdateNotificationsTile> {
     _refresh();
   }
 
-  Future<void> _refresh() async {
-    final enabled = await NotificationService.areNotificationsEnabled();
+  void _refresh() {
+    final subscribed = NotificationService.isSubscribed;
     if (!mounted) return;
-    setState(() => _enabled = enabled);
+    setState(() => _enabled = subscribed);
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _onChanged(bool value) async {
     if (value) {
-      await NotificationService.requestPermissionIfNeeded();
+      final permitted = await NotificationService.areNotificationsEnabled();
+      if (!permitted) {
+        await NotificationService.requestPermissionIfNeeded();
+      }
+      if (NotificationService.isSubscribed ||
+          await NotificationService.areNotificationsEnabled()) {
+        await NotificationService.subscribe();
+      }
     } else {
       await NotificationService.unsubscribe();
     }
-    final enabled = await NotificationService.areNotificationsEnabled();
     if (!mounted) return;
-    setState(() => _enabled = enabled);
+    setState(() => _enabled = NotificationService.isSubscribed);
 
-    if (value && !enabled) {
+    if (value && !NotificationService.isSubscribed) {
       _showMessage(
-        'Notifications are disabled for MediaRescue. Enable them in your '
-        'device settings to receive update announcements.',
+        'Notifications are disabled for MediaRescue in system settings.',
       );
-    } else if (!value) {
+    } else if (value) {
+      _showMessage('Update notifications turned on.');
+    } else {
       _showMessage('Update notifications turned off.');
     }
   }
@@ -425,29 +525,22 @@ class _UpdateNotificationsTileState extends State<_UpdateNotificationsTile> {
   @override
   Widget build(BuildContext context) {
     return SwitchListTile(
-      secondary: const Icon(Icons.notifications_active_outlined),
+      secondary: const HugeIcon(icon: HugeIcons.strokeRoundedNotification01),
       title: const Text('Update notifications'),
       subtitle: const Text(
-        'Receive announcements when a new version is available '
-        '(Firebase Cloud Messaging).',
+        'Receive announcements when a new version is released',
       ),
-            value: _enabled ?? false,
+      value: _enabled ?? false,
       onChanged: _enabled == null ? null : _onChanged,
     );
   }
 }
 
-/// Settings section for the OPTIONAL Shizuku-based Advanced Scanning feature.
-///
-/// Shows the live Shizuku status (re-read from the advanced scan controller),
-/// and opens the Advanced Scanning screen or the setup guide.
 class _AdvancedScanningSection extends ConsumerWidget {
   const _AdvancedScanningSection();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Re-evaluate status on every entry so the label is never stale after a
-    // Shizuku restart / permission grant / revocation.
     ref.watch(advancedScanProvider);
     final status = ref.read(advancedScanProvider);
     final shizukuStatus = status.shizukuStatus;
@@ -455,26 +548,29 @@ class _AdvancedScanningSection extends ConsumerWidget {
     return Column(
       children: [
         ListTile(
-          leading: const Icon(Icons.travel_explore),
+          leading: const HugeIcon(
+            icon: HugeIcons.strokeRoundedCpu,
+            color: AppColors.primary,
+          ),
           title: const Text('Advanced Scanning'),
-          subtitle: Text(_statusLabel(shizukuStatus),
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+          subtitle: Text(_statusLabel(shizukuStatus)),
           onTap: () => context.push('/advanced-scan'),
         ),
+        const Divider(),
         ListTile(
-          leading: const Icon(Icons.book_outlined),
+          leading: const HugeIcon(
+            icon: HugeIcons.strokeRoundedHelpCircle,
+            color: AppColors.secondary,
+          ),
           title: const Text('Shizuku Setup Guide'),
-          subtitle: const Text('How to install, start and authorize Shizuku'),
+          subtitle: const Text('How to setup Shizuku service'),
           onTap: () => context.push('/shizuku-guide'),
         ),
       ],
     );
   }
 
-    String _statusLabel(ShizukuStatus status) {
+  String _statusLabel(ShizukuStatus status) {
     return switch (status) {
       ShizukuStatus.authorized || ShizukuStatus.serviceConnected => 'Ready',
       ShizukuStatus.unavailable => 'Shizuku not installed',

@@ -3,7 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hugeicons/hugeicons.dart';
 
+import '../../app/theme/app_colors.dart';
+import '../../app/theme/app_radius.dart';
+import '../../app/theme/app_spacing.dart';
+import '../../app/theme/app_typography.dart';
 import '../../models/file_item.dart';
 import '../../models/hidden_media.dart';
 import '../../providers/gallery_provider.dart';
@@ -22,12 +27,6 @@ String _formatSize(int bytes) {
   return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
 }
 
-/// Dedicated Hidden / Unusual Media screen.
-///
-/// Shows every file classified as hidden by the combined-evidence model and
-/// explains exactly WHY each item was classified (only true signals).
-/// Supports a name search, Smart Filters (scoped to this screen) and a
-/// List / Large Icons view toggle.
 class HiddenMediaScreen extends ConsumerStatefulWidget {
   const HiddenMediaScreen({super.key});
 
@@ -42,8 +41,6 @@ class _HiddenMediaScreenState extends ConsumerState<HiddenMediaScreen> {
   @override
   void initState() {
     super.initState();
-    // Start every visit with a clean search query (Smart Filters persist on
-    // purpose so a returning visitor keeps their narrowed view).
     if (ref.read(hiddenMediaQueryProvider).isNotEmpty) {
       ref.read(hiddenMediaQueryProvider.notifier).set('');
     }
@@ -58,7 +55,7 @@ class _HiddenMediaScreenState extends ConsumerState<HiddenMediaScreen> {
 
   void _onQueryChanged(String value) {
     _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 400), () {
+    _debounce = Timer(const Duration(milliseconds: 300), () {
       if (!mounted) return;
       ref.read(hiddenMediaQueryProvider.notifier).set(value);
     });
@@ -81,9 +78,6 @@ class _HiddenMediaScreenState extends ConsumerState<HiddenMediaScreen> {
     final viewMode = ref.watch(hiddenMediaViewProvider);
     final filter = ref.watch(hiddenMediaFilterProvider);
     final query = ref.watch(hiddenMediaQueryProvider);
-    // While a scan is running the index is still being built — keep the
-    // loading state visible until the scan settles (the provider skips its
-    // computation in that case).
     final isScanning = ref.watch(isScanningProvider);
 
     return Scaffold(
@@ -94,10 +88,10 @@ class _HiddenMediaScreenState extends ConsumerState<HiddenMediaScreen> {
           decoration: InputDecoration(
             hintText: 'Search hidden media...',
             border: InputBorder.none,
-            prefixIcon: const Icon(Icons.search),
+            prefixIcon: const HugeIcon(icon: HugeIcons.strokeRoundedViewOff, size: 20),
             suffixIcon: query.isNotEmpty
                 ? IconButton(
-                    icon: const Icon(Icons.clear),
+                    icon: const HugeIcon(icon: HugeIcons.strokeRoundedCancel01, size: 18),
                     tooltip: 'Clear search',
                     onPressed: _clearSearch,
                   )
@@ -110,8 +104,9 @@ class _HiddenMediaScreenState extends ConsumerState<HiddenMediaScreen> {
             icon: Badge(
               isLabelVisible: filter.isActive,
               label: Text('${filter.activeGroupCount}'),
-              child: Icon(
-                filter.isActive ? Icons.filter_alt : Icons.filter_alt_outlined,
+              child: HugeIcon(
+                icon: HugeIcons.strokeRoundedFilter,
+                color: filter.isActive ? AppColors.primary : Theme.of(context).colorScheme.onSurface,
               ),
             ),
             onPressed: () => showSmartFilterSheet(
@@ -120,17 +115,18 @@ class _HiddenMediaScreenState extends ConsumerState<HiddenMediaScreen> {
             ),
           ),
           IconButton(
-            icon: Icon(
-              viewMode == GalleryViewMode.grid
-                  ? Icons.view_list
-                  : Icons.grid_view,
+            icon: HugeIcon(
+              icon: viewMode == GalleryViewMode.grid
+                  ? HugeIcons.strokeRoundedMenu01
+                  : HugeIcons.strokeRoundedGrid,
             ),
             tooltip: viewMode == GalleryViewMode.grid
-                ? 'Switch to list view'
-                : 'Switch to large icons',
+                ? 'List view'
+                : 'Grid view',
             onPressed: () =>
                 ref.read(hiddenMediaViewProvider.notifier).toggle(),
           ),
+          const SizedBox(width: AppSpacing.xs),
         ],
       ),
       body: isScanning
@@ -139,7 +135,7 @@ class _HiddenMediaScreenState extends ConsumerState<HiddenMediaScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   CircularProgressIndicator(),
-                  SizedBox(height: 16),
+                  SizedBox(height: AppSpacing.md),
                   Text('Analyzing storage for hidden media...'),
                 ],
               ),
@@ -150,7 +146,7 @@ class _HiddenMediaScreenState extends ConsumerState<HiddenMediaScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     CircularProgressIndicator(),
-                    SizedBox(height: 16),
+                    SizedBox(height: AppSpacing.md),
                     Text('Analyzing storage for hidden media...'),
                   ],
                 ),
@@ -159,17 +155,17 @@ class _HiddenMediaScreenState extends ConsumerState<HiddenMediaScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(
-                      Icons.error_outline,
+                    const HugeIcon(
+                      icon: HugeIcons.strokeRoundedAlertCircle,
                       size: 64,
-                      color: Colors.grey,
+                      color: AppColors.error,
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: AppSpacing.md),
                     const Text('Hidden Media could not be calculated.'),
-                    const SizedBox(height: 12),
-                    FilledButton.icon(
+                    const SizedBox(height: AppSpacing.md),
+                    ElevatedButton.icon(
                       onPressed: () => ref.invalidate(hiddenMediaItemsProvider),
-                      icon: const Icon(Icons.refresh),
+                      icon: const HugeIcon(icon: HugeIcons.strokeRoundedRefresh, color: Colors.white),
                       label: const Text('Retry'),
                     ),
                   ],
@@ -177,18 +173,16 @@ class _HiddenMediaScreenState extends ConsumerState<HiddenMediaScreen> {
               ),
               data: (items) {
                 if (items.isEmpty) {
-                  // Heuristic empty state — never claim the phone has no
-                  // hidden files at all.
                   return const Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          Icons.visibility_outlined,
+                        HugeIcon(
+                          icon: HugeIcons.strokeRoundedViewOff,
                           size: 64,
-                          color: Colors.grey,
+                          color: AppColors.secondary,
                         ),
-                        SizedBox(height: 16),
+                        SizedBox(height: AppSpacing.md),
                         Text(
                           'No Hidden Media Found',
                           style: TextStyle(
@@ -196,12 +190,11 @@ class _HiddenMediaScreenState extends ConsumerState<HiddenMediaScreen> {
                             fontSize: 18,
                           ),
                         ),
-                        SizedBox(height: 8),
+                        SizedBox(height: AppSpacing.xs),
                         Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 32),
+                          padding: EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
                           child: Text(
-                            "MediaRescue didn't find any media matching "
-                            'the hidden/unusual criteria.',
+                            "MediaRescue didn't find any hidden or unusual media files.",
                             textAlign: TextAlign.center,
                           ),
                         ),
@@ -210,28 +203,27 @@ class _HiddenMediaScreenState extends ConsumerState<HiddenMediaScreen> {
                   );
                 }
                 if (filtered.isEmpty) {
-                  // Search/filters narrowed everything away.
                   return Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(
-                          Icons.search_off,
+                        const HugeIcon(
+                          icon: HugeIcons.strokeRoundedSearch01,
                           size: 64,
-                          color: Colors.grey,
+                          color: AppColors.other,
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: AppSpacing.md),
                         const Text('No matching hidden media'),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: AppSpacing.xs),
                         const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 32),
+                          padding: EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
                           child: Text(
-                            'Try a different search or clear the filters.',
+                            'Try a different search query or reset your active filters.',
                             textAlign: TextAlign.center,
                           ),
                         ),
-                        const SizedBox(height: 12),
-                        FilledButton.tonal(
+                        const SizedBox(height: AppSpacing.md),
+                        OutlinedButton(
                           onPressed: _clearAllNarrowing,
                           child: const Text('Clear search & filters'),
                         ),
@@ -248,7 +240,6 @@ class _HiddenMediaScreenState extends ConsumerState<HiddenMediaScreen> {
   }
 }
 
-/// Opens a hidden file with the immersive preview, matching Search/Browse.
 void _openHiddenFile(
   BuildContext context,
   FileItem item,
@@ -267,29 +258,26 @@ void _openHiddenFile(
   }
 }
 
-/// Header row shared by both view modes.
 Widget _hiddenMediaHeader(BuildContext context, List<HiddenMediaItem> items) {
   final totalSize = items.fold<int>(0, (s, e) => s + e.item.size);
   return Padding(
-    padding: const EdgeInsets.all(16),
+    padding: AppSpacing.pagePadding,
     child: Align(
       alignment: Alignment.centerLeft,
       child: Text(
-        '${items.length} hidden item${items.length == 1 ? '' : 's'}  •  '
-        '${_formatSize(totalSize)}',
-        style: Theme.of(context).textTheme.bodyMedium,
+        '${items.length} hidden item${items.length == 1 ? '' : 's'}  •  ${_formatSize(totalSize)}',
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.bold),
       ),
     ),
   );
 }
 
-/// The "Why hidden?" entry injected into the shared file-actions sheet.
 ListTile _whyHiddenActionTile(
   BuildContext sheetContext,
   HiddenMediaItem entry,
 ) {
   return ListTile(
-    leading: const Icon(Icons.help_outline),
+    leading: const HugeIcon(icon: HugeIcons.strokeRoundedInformationCircle, color: AppColors.secondary),
     title: const Text('Why hidden?'),
     onTap: () {
       Navigator.of(sheetContext).pop();
@@ -298,67 +286,68 @@ ListTile _whyHiddenActionTile(
   );
 }
 
-/// Explains why one item was classified as hidden — only true signals.
 void _showWhyHidden(BuildContext context, HiddenMediaItem entry) {
   final theme = Theme.of(context);
   showModalBottomSheet<void>(
     context: context,
     backgroundColor: theme.colorScheme.surface,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg))),
     builder: (ctx) => SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-            child: Text(
-              'Why hidden?',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.outline,
+                  borderRadius: AppRadius.borderPill,
+                ),
               ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Text(
-              entry.item.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+            Padding(
+              padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xs),
+              child: Text(
+                'Why hidden?',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 8),
-          ...entry.reasons.reasonLabels.map(
-            (label) => Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-              child: Row(
-                children: [
-                  const Icon(Icons.check_circle, size: 18, color: Colors.green),
-                  const SizedBox(width: 10),
-                  Expanded(child: Text(label)),
-                ],
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+              child: Text(
+                entry.item.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall,
               ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-            child: Text(
-              'Hidden Media detection is heuristic — a file qualifies when '
-              'several independent signals agree.',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+            const Divider(height: 24),
+            ...entry.reasons.reasonLabels.map(
+              (label) => Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.xs),
+                child: Row(
+                  children: [
+                    const HugeIcon(icon: HugeIcons.strokeRoundedCheckmarkCircle02, size: 18, color: AppColors.success),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(child: Text(label, style: const TextStyle(fontWeight: FontWeight.w600))),
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
+            const SizedBox(height: AppSpacing.md),
+          ],
+        ),
       ),
     ),
   );
 }
 
-/// List view — dense rows with reasons inline (the previous default).
 class _HiddenMediaListView extends ConsumerWidget {
   final List<HiddenMediaItem> items;
 
@@ -372,40 +361,40 @@ class _HiddenMediaListView extends ConsumerWidget {
       children: [
         _hiddenMediaHeader(context, items),
         Expanded(
-          child: ListView.builder(
+          child: ListView.separated(
             itemCount: items.length,
+            separatorBuilder: (_, __) => const Divider(height: 1),
             itemBuilder: (context, index) {
               final entry = items[index];
               final item = entry.item;
               return ListTile(
-                leading: ClipRRect(
-                  borderRadius: BorderRadius.circular(6),
-                  child: ThumbnailImage(item: item, width: 44, height: 44),
-                ),
+                leading: ThumbnailImage(item: item, width: 44, height: 44, borderRadius: AppRadius.sm),
                 title: Text(
                   item.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
                 subtitle: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${_formatSize(item.size)}  •  '
-                      '${item.mimeType ?? 'Unknown'}',
+                      '${_formatSize(item.size)}  •  ${item.mimeType ?? 'Unknown'}',
+                      style: AppTypography.codeMono,
                     ),
                     Text(
                       entry.reasons.reasonLabels.join('  •  '),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        color: AppColors.secondary,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
                 ),
                 trailing: IconButton(
-                  icon: const Icon(Icons.more_vert),
+                  icon: const HugeIcon(icon: HugeIcons.strokeRoundedMoreVertical, size: 18),
                   tooltip: 'File actions',
                   onPressed: () => showFileActionsSheet(
                     context,
@@ -426,7 +415,6 @@ class _HiddenMediaListView extends ConsumerWidget {
   }
 }
 
-/// Large Icons view — a thumbnail grid mirroring the Gallery's grid layout.
 class _HiddenMediaGridView extends ConsumerWidget {
   final List<HiddenMediaItem> items;
 
@@ -441,11 +429,11 @@ class _HiddenMediaGridView extends ConsumerWidget {
         _hiddenMediaHeader(context, items),
         Expanded(
           child: GridView.builder(
-            padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+            padding: const EdgeInsets.all(AppSpacing.sm),
             gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
               maxCrossAxisExtent: 160,
-              mainAxisSpacing: 8,
-              crossAxisSpacing: 8,
+              mainAxisSpacing: AppSpacing.sm,
+              crossAxisSpacing: AppSpacing.sm,
               childAspectRatio: 0.85,
             ),
             itemCount: items.length,
@@ -479,11 +467,12 @@ class _HiddenMediaGridTile extends ConsumerWidget {
         onOpen: () => _openHiddenFile(context, item, media),
         additionalActions: [_whyHiddenActionTile(context, entry)],
       ),
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: AppRadius.borderMd,
       child: Container(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          color: theme.colorScheme.surfaceContainerHighest,
+          borderRadius: AppRadius.borderMd,
+          border: Border.all(color: theme.colorScheme.outline, width: 1),
+          color: theme.cardTheme.color,
         ),
         clipBehavior: Clip.antiAlias,
         child: Column(
@@ -494,10 +483,11 @@ class _HiddenMediaGridTile extends ConsumerWidget {
                 item: item,
                 width: double.infinity,
                 height: double.infinity,
+                borderRadius: 0,
               ),
             ),
             Padding(
-              padding: const EdgeInsets.all(6),
+              padding: const EdgeInsets.all(AppSpacing.xs + 2),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -505,15 +495,11 @@ class _HiddenMediaGridTile extends ConsumerWidget {
                     item.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700),
                   ),
                   Text(
                     _formatSize(item.size),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
+                    style: theme.textTheme.bodySmall,
                   ),
                 ],
               ),

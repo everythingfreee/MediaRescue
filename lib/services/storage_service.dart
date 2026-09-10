@@ -76,7 +76,8 @@ abstract class StorageService {
   Future<bool> saveRescueSettings(Map<String, Object?> settings);
 
   /// Reads a boolean app preference stored natively (SharedPreferences).
-  Future<bool> getAppPrefBool(String key);
+  /// Returns null when the key has never been set.
+  Future<bool?> getAppPrefBool(String key);
 
   /// Writes a boolean app preference natively (SharedPreferences).
   Future<bool> setAppPrefBool(String key, bool value);
@@ -430,13 +431,13 @@ class MethodChannelStorageService implements StorageService {
   }
 
   @override
-  Future<bool> getAppPrefBool(String key) async {
+  Future<bool?> getAppPrefBool(String key) async {
     try {
       final bool? result =
           await _channel.invokeMethod('getAppPrefBool', {'key': key});
-      return result ?? false;
+      return result; // null = key not set, true/false = user's choice
     } on PlatformException catch (_) {
-      return false;
+      return null;
     }
   }
 

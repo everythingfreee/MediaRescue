@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hugeicons/hugeicons.dart';
+import '../../app/theme/app_colors.dart';
+import '../../app/theme/app_radius.dart';
+import '../../app/theme/app_spacing.dart';
 import '../../models/file_item.dart';
 import '../../providers/gallery_provider.dart';
 import '../../providers/storage_provider.dart';
-import '../../services/storage_service.dart';
+import '../../widgets/app_card.dart';
 import '../../widgets/thumbnail_image.dart';
 import 'file_info_screen.dart';
 import 'folder_picker_screen.dart';
@@ -32,7 +36,6 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
     final gallery = ref.watch(galleryProvider);
     final theme = Theme.of(context);
 
-    // Clear the search text field when the folder changes
     if (gallery.searchQuery.isEmpty && _searchController.text.isNotEmpty) {
       _searchController.clear();
     }
@@ -44,22 +47,30 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
               title: TextField(
                 controller: _searchController,
                 decoration: const InputDecoration(
-                  hintText: 'Search files...',
+                  hintText: 'Search gallery files...',
                   border: InputBorder.none,
-                  suffixIcon: Icon(Icons.search),
+                  prefixIcon: HugeIcon(
+                    icon: HugeIcons.strokeRoundedSearch01,
+                    size: 20,
+                  ),
                 ),
                 onChanged: (value) =>
                     ref.read(galleryProvider.notifier).setSearchQuery(value),
               ),
               actions: [
                 IconButton(
-                  icon: const Icon(Icons.refresh),
+                  icon: const HugeIcon(
+                    icon: HugeIcons.strokeRoundedRefresh,
+                    color: AppColors.primary,
+                  ),
                   tooltip: 'Rescan folder',
-                  onPressed: () =>
-                      ref.read(galleryProvider.notifier).refresh(),
+                  onPressed: () => ref.read(galleryProvider.notifier).refresh(),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.folder_open),
+                  icon: const HugeIcon(
+                    icon: HugeIcons.strokeRoundedFolder01,
+                    color: AppColors.primary,
+                  ),
                   tooltip: 'Change folder',
                   onPressed: () => _openFolderPicker(context),
                 ),
@@ -75,7 +86,6 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
   }
 
   Widget _buildFolderSelection(ThemeData theme) {
-    // Common media folders users often want to scan.
     const suggestions = [
       ('Android', '/storage/emulated/0/Android'),
       ('DCIM', '/storage/emulated/0/DCIM'),
@@ -88,54 +98,100 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
     ];
 
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: AppSpacing.pagePadding,
       children: [
-        Icon(
-          Icons.photo_library_outlined,
-          size: 80,
-          color: theme.colorScheme.primary,
+        const SizedBox(height: AppSpacing.md),
+        Center(
+          child: Container(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primary.withOpacity(0.12),
+              shape: BoxShape.circle,
+            ),
+            child: HugeIcon(
+              icon: HugeIcons.strokeRoundedImage01,
+              size: 56,
+              color: theme.colorScheme.primary,
+            ),
+          ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: AppSpacing.lg),
         Text(
-          'Gallery',
+          'Media Gallery',
           textAlign: TextAlign.center,
-          style: theme.textTheme.headlineMedium
-              ?.copyWith(fontWeight: FontWeight.bold),
+          style: theme.textTheme.headlineMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.xs),
         Text(
-          'Select a folder to scan and view all files inside it, '
-          'including sub-folders.',
+          'Select a directory to index and explore all media files, including sub-folders.',
           textAlign: TextAlign.center,
           style: theme.textTheme.bodyMedium?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),
         ),
-        const SizedBox(height: 24),
-        FilledButton.icon(
+        const SizedBox(height: AppSpacing.xl),
+        ElevatedButton.icon(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: theme.colorScheme.primary,
+            foregroundColor: theme.colorScheme.onPrimary,
+            minimumSize: const Size(double.infinity, 48),
+            shape: RoundedRectangleBorder(borderRadius: AppRadius.borderMd),
+          ),
           onPressed: () => _openFolderPicker(context),
-          icon: const Icon(Icons.folder_open),
-          label: const Text('Choose Folder'),
+          icon: const HugeIcon(
+            icon: HugeIcons.strokeRoundedFolderOpen,
+            color: Colors.white,
+          ),
+          label: const Text('Choose Directory'),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: AppSpacing.xl),
         Text(
-          'Suggested folders',
-          style: theme.textTheme.titleMedium
-              ?.copyWith(fontWeight: FontWeight.bold),
+          'Suggested Folders',
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.md),
         ...suggestions.map((s) {
           final (name, path) = s;
-          return Card(
-            margin: const EdgeInsets.only(bottom: 8),
-            child: ListTile(
-              leading: const Icon(Icons.folder, color: Colors.amber),
-              title: Text(name),
-              subtitle: Text(path, maxLines: 1, overflow: TextOverflow.ellipsis),
-              trailing: const Icon(Icons.chevron_right),
+          return Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+            child: AppCard(
               onTap: () {
                 ref.read(galleryProvider.notifier).selectFolder(path, name);
               },
+              child: Row(
+                children: [
+                  const HugeIcon(
+                    icon: HugeIcons.strokeRoundedFolder01,
+                    color: Colors.amber,
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          name,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          path,
+                          style: theme.textTheme.bodySmall,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const HugeIcon(
+                    icon: HugeIcons.strokeRoundedArrowRight01,
+                    size: 18,
+                  ),
+                ],
+              ),
             ),
           );
         }),
@@ -144,9 +200,9 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
   }
 
   void _openFolderPicker(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const FolderPickerScreen()),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const FolderPickerScreen()));
   }
 
   Widget _buildGalleryContent(GalleryState gallery, ThemeData theme) {
@@ -157,17 +213,20 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
     if (gallery.error != null) {
       return Center(
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: AppSpacing.pagePadding,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.error_outline, size: 64, color: Colors.red),
-              const SizedBox(height: 16),
+              const HugeIcon(
+                icon: HugeIcons.strokeRoundedAlertCircle,
+                size: 64,
+                color: AppColors.error,
+              ),
+              const SizedBox(height: AppSpacing.md),
               Text(gallery.error!, textAlign: TextAlign.center),
-              const SizedBox(height: 16),
-              FilledButton(
-                onPressed: () =>
-                    ref.read(galleryProvider.notifier).refresh(),
+              const SizedBox(height: AppSpacing.md),
+              ElevatedButton(
+                onPressed: () => ref.read(galleryProvider.notifier).refresh(),
                 child: const Text('Retry'),
               ),
             ],
@@ -198,29 +257,32 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
   }
 
   Widget _buildFilterBar(
-      GalleryState gallery, List<FileItem> files, ThemeData theme) {
+    GalleryState gallery,
+    List<FileItem> files,
+    ThemeData theme,
+  ) {
     final filters = [
-      (GalleryFilter.all, Icons.all_inclusive, 'All'),
-      (GalleryFilter.images, Icons.image, 'Images'),
-      (GalleryFilter.videos, Icons.video_file, 'Videos'),
-      (GalleryFilter.audio, Icons.audiotrack, 'Audio'),
-      (GalleryFilter.documents, Icons.picture_as_pdf, 'Docs'),
-      (GalleryFilter.text, Icons.description, 'Text'),
-      (GalleryFilter.other, Icons.help_outline, 'Other'),
+      (GalleryFilter.all, HugeIcons.strokeRoundedGrid, 'All'),
+      (GalleryFilter.images, HugeIcons.strokeRoundedImage01, 'Images'),
+      (GalleryFilter.videos, HugeIcons.strokeRoundedVideo01, 'Videos'),
+      (GalleryFilter.audio, HugeIcons.strokeRoundedMusicNote01, 'Audio'),
+      (GalleryFilter.documents, HugeIcons.strokeRoundedPdf01, 'Docs'),
+      (GalleryFilter.text, HugeIcons.strokeRoundedFile01, 'Text'),
+      (GalleryFilter.other, HugeIcons.strokeRoundedFolder01, 'Other'),
     ];
 
     return Container(
       color: theme.colorScheme.surfaceContainerLow,
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
       child: Column(
         children: [
           SizedBox(
             height: 40,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
               itemCount: filters.length,
-              separatorBuilder: (_, _) => const SizedBox(width: 8),
+              separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.xs),
               itemBuilder: (context, index) {
                 final (filter, icon, label) = filters[index];
                 final isSelected = gallery.filter == filter;
@@ -228,7 +290,13 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
                   selected: isSelected,
                   onSelected: (_) =>
                       ref.read(galleryProvider.notifier).setFilter(filter),
-                  avatar: Icon(icon, size: 16),
+                  avatar: HugeIcon(
+                    icon: icon,
+                    size: 14,
+                    color: isSelected
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.onSurface,
+                  ),
                   label: Text(label),
                   showCheckmark: false,
                 );
@@ -238,112 +306,74 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
           Row(
             children: [
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                 child: Text(
                   '${files.length} file${files.length == 1 ? '' : 's'}',
-                  style: theme.textTheme.bodySmall,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
               const Spacer(),
-              // Sort button
               PopupMenuButton<GallerySort>(
-                icon: const Icon(Icons.sort),
+                icon: const HugeIcon(icon: HugeIcons.strokeRoundedSorting01),
                 tooltip: 'Sort',
                 onSelected: (sort) =>
                     ref.read(galleryProvider.notifier).setSort(sort),
                 itemBuilder: (context) => [
                   const PopupMenuItem(
                     value: GallerySort.nameAsc,
-                    child: ListTile(
-                      leading: Icon(Icons.sort_by_alpha),
-                      title: Text('Name (A-Z)'),
-                      dense: true,
-                    ),
+                    child: Text('Name (A-Z)'),
                   ),
                   const PopupMenuItem(
                     value: GallerySort.nameDesc,
-                    child: ListTile(
-                      leading: Icon(Icons.sort_by_alpha),
-                      title: Text('Name (Z-A)'),
-                      dense: true,
-                    ),
+                    child: Text('Name (Z-A)'),
                   ),
                   const PopupMenuItem(
                     value: GallerySort.sizeAsc,
-                    child: ListTile(
-                      leading: Icon(Icons.data_usage),
-                      title: Text('Size (Small first)'),
-                      dense: true,
-                    ),
+                    child: Text('Size (Smallest first)'),
                   ),
                   const PopupMenuItem(
                     value: GallerySort.sizeDesc,
-                    child: ListTile(
-                      leading: Icon(Icons.data_usage),
-                      title: Text('Size (Large first)'),
-                      dense: true,
-                    ),
+                    child: Text('Size (Largest first)'),
                   ),
                   const PopupMenuItem(
                     value: GallerySort.dateAsc,
-                    child: ListTile(
-                      leading: Icon(Icons.date_range),
-                      title: Text('Date (Oldest first)'),
-                      dense: true,
-                    ),
+                    child: Text('Date (Oldest first)'),
                   ),
                   const PopupMenuItem(
                     value: GallerySort.dateDesc,
-                    child: ListTile(
-                      leading: Icon(Icons.date_range),
-                      title: Text('Date (Newest first)'),
-                      dense: true,
-                    ),
-                  ),
-                  const PopupMenuItem(
-                    value: GallerySort.typeAsc,
-                    child: ListTile(
-                      leading: Icon(Icons.category),
-                      title: Text('Type (A-Z)'),
-                      dense: true,
-                    ),
-                  ),
-                  const PopupMenuItem(
-                    value: GallerySort.typeDesc,
-                    child: ListTile(
-                      leading: Icon(Icons.category),
-                      title: Text('Type (Z-A)'),
-                      dense: true,
-                    ),
+                    child: Text('Date (Newest first)'),
                   ),
                 ],
               ),
               IconButton(
-                icon: Icon(
-                  gallery.viewMode == GalleryViewMode.grid
-                      ? Icons.view_list
-                      : Icons.grid_view,
+                icon: HugeIcon(
+                  icon: gallery.viewMode == GalleryViewMode.grid
+                      ? HugeIcons.strokeRoundedMenu01
+                      : HugeIcons.strokeRoundedGrid,
                 ),
                 tooltip: gallery.viewMode == GalleryViewMode.grid
-                    ? 'Switch to list view'
-                    : 'Switch to grid view',
+                    ? 'List View'
+                    : 'Grid View',
                 onPressed: () {
-                  final notifier = ref.read(galleryProvider.notifier);
-                  notifier.setViewMode(
-                    gallery.viewMode == GalleryViewMode.grid
-                        ? GalleryViewMode.list
-                        : GalleryViewMode.grid,
-                  );
+                  ref
+                      .read(galleryProvider.notifier)
+                      .setViewMode(
+                        gallery.viewMode == GalleryViewMode.grid
+                            ? GalleryViewMode.list
+                            : GalleryViewMode.grid,
+                      );
                 },
               ),
               IconButton(
-                icon: const Icon(Icons.checklist),
+                icon: const HugeIcon(icon: HugeIcons.strokeRoundedCheckList),
                 tooltip: 'Select files',
                 onPressed: files.isEmpty
                     ? null
                     : () => ref
-                        .read(galleryProvider.notifier)
-                        .toggleSelection(files.first),
+                          .read(galleryProvider.notifier)
+                          .toggleSelection(files.first),
               ),
             ],
           ),
@@ -357,22 +387,17 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            Icons.folder_open,
+          HugeIcon(
+            icon: HugeIcons.strokeRoundedFolderOpen,
             size: 64,
             color: theme.colorScheme.outline,
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.md),
+          Text('No files found', style: theme.textTheme.titleMedium),
+          const SizedBox(height: AppSpacing.xs),
           Text(
-            'No files found',
-            style: theme.textTheme.titleMedium,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Try a different filter or folder.',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
+            'Try selecting another filter or directory.',
+            style: theme.textTheme.bodySmall,
           ),
         ],
       ),
@@ -382,11 +407,11 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
   Widget _buildGridView(GalleryState gallery, List<FileItem> files) {
     return GridView.builder(
       controller: _scrollController,
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(AppSpacing.sm),
       gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
         maxCrossAxisExtent: 160,
-        mainAxisSpacing: 8,
-        crossAxisSpacing: 8,
+        mainAxisSpacing: AppSpacing.sm,
+        crossAxisSpacing: AppSpacing.sm,
         childAspectRatio: 0.85,
       ),
       itemCount: files.length,
@@ -419,8 +444,6 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
   }
 }
 
-// ── Grid Tile ─────────────────────────────────────────────────────────────────
-
 class _GalleryGridTile extends ConsumerWidget {
   final FileItem item;
   final List<FileItem> allFiles;
@@ -448,7 +471,10 @@ class _GalleryGridTile extends ConsumerWidget {
       final media = allFiles.where((f) => f.isImage || f.isVideo).toList();
       context.push('/preview/media', extra: {'item': item, 'allFiles': media});
     } else if (item.isAudio) {
-      context.push('/preview/audio', extra: {'item': item, 'allFiles': allFiles});
+      context.push(
+        '/preview/audio',
+        extra: {'item': item, 'allFiles': allFiles},
+      );
     } else if (item.isPdf) {
       context.push('/preview/pdf', extra: item);
     } else {
@@ -461,12 +487,18 @@ class _GalleryGridTile extends ConsumerWidget {
   void _showFileMenu(BuildContext context, WidgetRef ref, FileItem item) {
     showModalBottomSheet(
       context: context,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+      ),
       builder: (ctx) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.check_circle_outline),
+              leading: const HugeIcon(
+                icon: HugeIcons.strokeRoundedCheckmarkCircle02,
+                color: AppColors.primary,
+              ),
               title: const Text('Select'),
               onTap: () {
                 Navigator.of(ctx).pop();
@@ -474,28 +506,27 @@ class _GalleryGridTile extends ConsumerWidget {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.info_outline),
+              leading: const HugeIcon(
+                icon: HugeIcons.strokeRoundedInformationCircle,
+                color: Colors.purple,
+              ),
               title: const Text('File Info'),
               onTap: () {
                 Navigator.of(ctx).pop();
                 Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => FileInfoScreen(item: item),
-                  ),
+                  MaterialPageRoute(builder: (_) => FileInfoScreen(item: item)),
                 );
               },
             ),
             ListTile(
-              leading: const Icon(Icons.drive_file_rename_outline),
-              title: const Text('Rename'),
-              onTap: () {
-                Navigator.of(ctx).pop();
-                _showRenameDialog(context, ref, item);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.delete_outline, color: Colors.red),
-              title: const Text('Delete', style: TextStyle(color: Colors.red)),
+              leading: const HugeIcon(
+                icon: HugeIcons.strokeRoundedDelete02,
+                color: AppColors.error,
+              ),
+              title: const Text(
+                'Delete',
+                style: TextStyle(color: AppColors.error),
+              ),
               onTap: () {
                 Navigator.of(ctx).pop();
                 _confirmSingleDelete(context, ref, item);
@@ -507,50 +538,11 @@ class _GalleryGridTile extends ConsumerWidget {
     );
   }
 
-  Future<void> _showRenameDialog(
-      BuildContext context, WidgetRef ref, FileItem item) async {
-    final controller = TextEditingController(text: item.name);
-    final newName = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Rename file'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(
-            labelText: 'New name',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
-            child: const Text('Rename'),
-          ),
-        ],
-      ),
-    );
-
-    if (newName != null && newName.isNotEmpty && context.mounted) {
-      final storageService = ref.read(storageServiceProvider);
-      final success = await storageService.renameFile(item.path, newName);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(success ? 'File renamed.' : 'Rename failed.'),
-        ));
-        if (success) {
-          ref.read(galleryProvider.notifier).refresh();
-        }
-      }
-    }
-  }
-
   Future<void> _confirmSingleDelete(
-      BuildContext context, WidgetRef ref, FileItem item) async {
+    BuildContext context,
+    WidgetRef ref,
+    FileItem item,
+  ) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -563,7 +555,7 @@ class _GalleryGridTile extends ConsumerWidget {
           ),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
             child: const Text('Delete'),
           ),
         ],
@@ -575,9 +567,9 @@ class _GalleryGridTile extends ConsumerWidget {
       final success = await storageService.deleteFiles([item.path]);
       ref.read(galleryProvider.notifier).removeFiles([item.path]);
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(success ? 'File deleted.' : 'Delete failed.'),
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(success ? 'File deleted.' : 'Delete failed.')),
+        );
       }
     }
   }
@@ -601,16 +593,16 @@ class _GalleryGridTile extends ConsumerWidget {
           _showFileMenu(context, ref, item);
         }
       },
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: AppRadius.borderMd,
       child: Container(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: AppRadius.borderMd,
           border: isSelected
               ? Border.all(color: theme.colorScheme.primary, width: 2)
-              : null,
+              : Border.all(color: theme.colorScheme.outline, width: 1),
           color: isSelected
-              ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3)
-              : theme.colorScheme.surfaceContainerHighest,
+              ? theme.colorScheme.primary.withOpacity(0.12)
+              : theme.cardTheme.color,
         ),
         clipBehavior: Clip.antiAlias,
         child: Column(
@@ -621,11 +613,15 @@ class _GalleryGridTile extends ConsumerWidget {
                 fit: StackFit.expand,
                 children: [
                   ThumbnailImage(
-                      item: item, width: double.infinity, height: double.infinity),
+                    item: item,
+                    width: double.infinity,
+                    height: double.infinity,
+                    borderRadius: 0,
+                  ),
                   if (isSelected)
                     Positioned(
-                      top: 4,
-                      right: 4,
+                      top: 6,
+                      right: 6,
                       child: Container(
                         padding: const EdgeInsets.all(2),
                         decoration: BoxDecoration(
@@ -643,7 +639,7 @@ class _GalleryGridTile extends ConsumerWidget {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.all(6),
+              padding: const EdgeInsets.all(AppSpacing.xs + 2),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -651,14 +647,13 @@ class _GalleryGridTile extends ConsumerWidget {
                     item.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(fontWeight: FontWeight.w600),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   Text(
                     _formatSize(item.size),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
+                    style: theme.textTheme.bodySmall,
                   ),
                 ],
               ),
@@ -669,8 +664,6 @@ class _GalleryGridTile extends ConsumerWidget {
     );
   }
 }
-
-// ── List Tile ─────────────────────────────────────────────────────────────────
 
 class _GalleryListTile extends ConsumerWidget {
   final FileItem item;
@@ -699,7 +692,10 @@ class _GalleryListTile extends ConsumerWidget {
       final media = allFiles.where((f) => f.isImage || f.isVideo).toList();
       context.push('/preview/media', extra: {'item': item, 'allFiles': media});
     } else if (item.isAudio) {
-      context.push('/preview/audio', extra: {'item': item, 'allFiles': allFiles});
+      context.push(
+        '/preview/audio',
+        extra: {'item': item, 'allFiles': allFiles},
+      );
     } else if (item.isPdf) {
       context.push('/preview/pdf', extra: item);
     } else {
@@ -709,152 +705,27 @@ class _GalleryListTile extends ConsumerWidget {
     }
   }
 
-  void _showFileMenu(BuildContext context, WidgetRef ref, FileItem item) {
-    showModalBottomSheet(
-      context: context,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.check_circle_outline),
-              title: const Text('Select'),
-              onTap: () {
-                Navigator.of(ctx).pop();
-                ref.read(galleryProvider.notifier).toggleSelection(item);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.info_outline),
-              title: const Text('File Info'),
-              onTap: () {
-                Navigator.of(ctx).pop();
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => FileInfoScreen(item: item),
-                  ),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.drive_file_rename_outline),
-              title: const Text('Rename'),
-              onTap: () {
-                Navigator.of(ctx).pop();
-                _showRenameDialog(context, ref, item);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.delete_outline, color: Colors.red),
-              title: const Text('Delete', style: TextStyle(color: Colors.red)),
-              onTap: () {
-                Navigator.of(ctx).pop();
-                _confirmSingleDelete(context, ref, item);
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _showRenameDialog(
-      BuildContext context, WidgetRef ref, FileItem item) async {
-    final controller = TextEditingController(text: item.name);
-    final newName = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Rename file'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(
-            labelText: 'New name',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
-            child: const Text('Rename'),
-          ),
-        ],
-      ),
-    );
-
-    if (newName != null && newName.isNotEmpty && context.mounted) {
-      final storageService = ref.read(storageServiceProvider);
-      final success = await storageService.renameFile(item.path, newName);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(success ? 'File renamed.' : 'Rename failed.'),
-        ));
-        if (success) {
-          ref.read(galleryProvider.notifier).refresh();
-        }
-      }
-    }
-  }
-
-  Future<void> _confirmSingleDelete(
-      BuildContext context, WidgetRef ref, FileItem item) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete file?'),
-        content: Text('Delete "${item.name}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true && context.mounted) {
-      final storageService = ref.read(storageServiceProvider);
-      final success = await storageService.deleteFiles([item.path]);
-      ref.read(galleryProvider.notifier).removeFiles([item.path]);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(success ? 'File deleted.' : 'Delete failed.'),
-        ));
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-
     return ListTile(
       selected: isSelected,
-      selectedTileColor:
-          theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
       leading: isSelectionMode
           ? Checkbox(
               value: isSelected,
               onChanged: (_) =>
                   ref.read(galleryProvider.notifier).toggleSelection(item),
             )
-          : ClipRRect(
-              borderRadius: BorderRadius.circular(6),
-              child: ThumbnailImage(item: item, width: 44, height: 44),
+          : ThumbnailImage(
+              item: item,
+              width: 44,
+              height: 44,
+              borderRadius: AppRadius.sm,
             ),
       title: Text(
         item.name,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
+        style: const TextStyle(fontWeight: FontWeight.w600),
       ),
       subtitle: Text(
         '${item.mimeType ?? 'Unknown'}  •  ${_formatSize(item.size)}',
@@ -868,18 +739,9 @@ class _GalleryListTile extends ConsumerWidget {
           _openFile(context, ref, item);
         }
       },
-      onLongPress: () {
-        if (isSelectionMode) {
-          ref.read(galleryProvider.notifier).toggleSelection(item);
-        } else {
-          _showFileMenu(context, ref, item);
-        }
-      },
     );
   }
 }
-
-// ── Selection Bottom Bar ──────────────────────────────────────────────────────
 
 class _GallerySelectionBar extends ConsumerWidget {
   final GalleryState gallery;
@@ -896,11 +758,14 @@ class _GallerySelectionBar extends ConsumerWidget {
   }
 
   Future<void> _confirmDelete(
-      BuildContext context, WidgetRef ref, Set<String> selected) async {
-    final selectedFiles =
-        gallery.files.where((f) => selected.contains(f.path)).toList();
-    final totalSize =
-        selectedFiles.fold<int>(0, (sum, f) => sum + f.size);
+    BuildContext context,
+    WidgetRef ref,
+    Set<String> selected,
+  ) async {
+    final selectedFiles = gallery.files
+        .where((f) => selected.contains(f.path))
+        .toList();
+    final totalSize = selectedFiles.fold<int>(0, (sum, f) => sum + f.size);
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -917,7 +782,7 @@ class _GallerySelectionBar extends ConsumerWidget {
           ),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
             child: const Text('Delete'),
           ),
         ],
@@ -929,39 +794,13 @@ class _GallerySelectionBar extends ConsumerWidget {
       final success = await storageService.deleteFiles(selected.toList());
       ref.read(galleryProvider.notifier).removeFiles(selected.toList());
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(success
-              ? 'Files deleted.'
-              : 'Some files could not be deleted.'),
-        ));
-      }
-    }
-  }
-
-  Future<void> _moveFiles(
-      BuildContext context, WidgetRef ref, Set<String> selected) async {
-    final storageService = ref.read(storageServiceProvider);
-    final currentFolder = gallery.selectedFolderPath;
-
-    // Show a dialog to pick a destination folder
-    final destination = await showDialog<String>(
-      context: context,
-      builder: (ctx) => _MoveDialog(
-        initialPath: currentFolder,
-        storageService: storageService,
-      ),
-    );
-
-    if (destination != null && context.mounted) {
-      final success =
-          await storageService.moveFiles(selected.toList(), destination);
-      ref.read(galleryProvider.notifier).removeFiles(selected.toList());
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(success
-              ? 'Files moved.'
-              : 'Some files could not be moved.'),
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              success ? 'Files deleted.' : 'Some files could not be deleted.',
+            ),
+          ),
+        );
       }
     }
   }
@@ -971,12 +810,22 @@ class _GallerySelectionBar extends ConsumerWidget {
     final selected = gallery.selectedPaths;
     final theme = Theme.of(context);
 
-    final selectedFiles =
-        gallery.files.where((f) => selected.contains(f.path)).toList();
+    final selectedFiles = gallery.files
+        .where((f) => selected.contains(f.path))
+        .toList();
     final totalSize = selectedFiles.fold<int>(0, (sum, f) => sum + f.size);
 
-    return BottomAppBar(
-      color: theme.colorScheme.secondaryContainer,
+    return Container(
+      margin: const EdgeInsets.all(AppSpacing.lg),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.md,
+      ),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: AppRadius.borderPill,
+        border: Border.all(color: theme.colorScheme.outline, width: 1),
+      ),
       child: Row(
         children: [
           Expanded(
@@ -986,203 +835,43 @@ class _GallerySelectionBar extends ConsumerWidget {
               children: [
                 Text(
                   '${selected.length} selected',
-                  style: theme.textTheme.titleMedium
-                      ?.copyWith(fontWeight: FontWeight.bold),
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-                Text(
-                  _formatSize(totalSize),
-                  style: theme.textTheme.bodySmall,
-                ),
+                Text(_formatSize(totalSize), style: theme.textTheme.bodySmall),
               ],
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.select_all),
+            icon: const HugeIcon(
+              icon: HugeIcons.strokeRoundedCheckList,
+              color: AppColors.primary,
+            ),
             tooltip: 'Select all',
-            onPressed: () =>
-                ref.read(galleryProvider.notifier).selectAll(),
+            onPressed: () => ref.read(galleryProvider.notifier).selectAll(),
           ),
           IconButton(
-            icon: const Icon(Icons.drive_file_move_outline),
-            tooltip: 'Move',
-            onPressed: selected.isEmpty
-                ? null
-                : () => _moveFiles(context, ref, selected),
-          ),
-          IconButton(
-            icon: const Icon(Icons.delete_outline),
+            icon: const HugeIcon(
+              icon: HugeIcons.strokeRoundedDelete02,
+              color: AppColors.error,
+            ),
             tooltip: 'Delete',
-            color: Colors.red,
             onPressed: selected.isEmpty
                 ? null
                 : () => _confirmDelete(context, ref, selected),
           ),
           IconButton(
-            icon: const Icon(Icons.close),
+            icon: HugeIcon(
+              icon: HugeIcons.strokeRoundedCancel01,
+              color: theme.colorScheme.onSurface,
+            ),
             tooltip: 'Cancel selection',
             onPressed: () =>
                 ref.read(galleryProvider.notifier).clearSelection(),
           ),
         ],
       ),
-    );
-  }
-}
-
-// ── Move Dialog ───────────────────────────────────────────────────────────────
-
-class _MoveDialog extends StatefulWidget {
-  final String? initialPath;
-  final StorageService storageService;
-
-  const _MoveDialog({
-    required this.initialPath,
-    required this.storageService,
-  });
-
-  @override
-  State<_MoveDialog> createState() => _MoveDialogState();
-}
-
-class _MoveDialogState extends State<_MoveDialog> {
-  String? _currentPath;
-  List<FileItem> _folders = [];
-  bool _isLoading = true;
-  String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    _currentPath = widget.initialPath ?? '/storage/emulated/0';
-    // Use post-frame callback to avoid setState during initState
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _loadFolders();
-    });
-  }
-
-  Future<void> _loadFolders() async {
-    if (!mounted) return;
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
-    try {
-      final items = await widget.storageService.listDirectory(_currentPath);
-      if (!mounted) return;
-      setState(() {
-        _folders = items.where((f) => f.isDirectory).toList()
-          ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
-        _isLoading = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _error = 'Failed to load folders: $e';
-        _isLoading = false;
-      });
-    }
-  }
-
-  void _navigateInto(FileItem folder) {
-    _currentPath = folder.path;
-    _loadFolders();
-  }
-
-  void _navigateBack() {
-    if (_currentPath == null) return;
-    final parent = _currentPath!.substring(0, _currentPath!.lastIndexOf('/'));
-    _currentPath = parent.isEmpty ? '/storage/emulated/0' : parent;
-    _loadFolders();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Move to folder'),
-      content: SizedBox(
-        width: double.maxFinite,
-        height: 400,
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    _currentPath ?? 'Internal Storage',
-                    style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.arrow_upward),
-                  tooltip: 'Up',
-                  onPressed: _currentPath == null ? null : _navigateBack,
-                ),
-              ],
-            ),
-            const Divider(height: 1),
-            Expanded(
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _error != null
-                      ? Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.error_outline,
-                                    color: Colors.red, size: 40),
-                                const SizedBox(height: 8),
-                                Text(_error!,
-                                    textAlign: TextAlign.center),
-                                const SizedBox(height: 8),
-                                TextButton(
-                                  onPressed: _loadFolders,
-                                  child: const Text('Retry'),
-                                ),
-                              ],
-                            ),
-                          ),
-                        )
-                      : _folders.isEmpty
-                          ? const Center(child: Text('No sub-folders'))
-                          : ListView.builder(
-                              itemCount: _folders.length,
-                              itemBuilder: (context, index) {
-                                final folder = _folders[index];
-                                return ListTile(
-                                  dense: true,
-                                  leading: const Icon(Icons.folder,
-                                      color: Colors.amber, size: 20),
-                                  title: Text(folder.name),
-                                  subtitle: Text(
-                                    folder.path,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(fontSize: 11),
-                                  ),
-                                  onTap: () => _navigateInto(folder),
-                                );
-                              },
-                            ),
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          onPressed: _currentPath == null
-              ? null
-              : () => Navigator.of(context).pop(_currentPath),
-          child: const Text('Move Here'),
-        ),
-      ],
     );
   }
 }

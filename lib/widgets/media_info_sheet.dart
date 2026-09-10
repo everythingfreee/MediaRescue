@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hugeicons/hugeicons.dart';
+import '../app/theme/app_radius.dart';
+import '../app/theme/app_spacing.dart';
 import '../models/file_item.dart';
 import '../providers/storage_provider.dart';
 
@@ -33,6 +36,7 @@ String formatDurationFromMs(int ms) {
   }
   return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
 }
+
 class _MediaInfoSheet extends StatefulWidget {
   final WidgetRef ref;
   final FileItem item;
@@ -118,21 +122,32 @@ class _MediaInfoSheetState extends State<_MediaInfoSheet> {
       ('Original path', item.path),
       ('Modified', formatDate(item.modifiedDate)),
       if (meta['creationDate'] != null)
-        ('Created (from metadata)', _s(meta['creationDate'])),
+        ('Created', _s(meta['creationDate'])),
     ];
 
     return SafeArea(
       child: DraggableScrollableSheet(
         expand: false,
-        initialChildSize: 0.62,
+        initialChildSize: 0.65,
         maxChildSize: 0.9,
-        minChildSize: 0.35,
+        minChildSize: 0.4,
         builder: (context, scrollController) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              const SizedBox(height: AppSpacing.md),
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.outline,
+                    borderRadius: AppRadius.borderPill,
+                  ),
+                ),
+              ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 12, 8),
+                padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.md, AppSpacing.sm),
                 child: Row(
                   children: [
                     Expanded(
@@ -143,7 +158,7 @@ class _MediaInfoSheetState extends State<_MediaInfoSheet> {
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.close),
+                      icon: HugeIcon(icon: HugeIcons.strokeRoundedCancel01, color: theme.colorScheme.onSurface),
                       onPressed: () => Navigator.of(context).pop(),
                       tooltip: 'Close',
                     ),
@@ -153,25 +168,18 @@ class _MediaInfoSheetState extends State<_MediaInfoSheet> {
               const Divider(height: 1),
               Expanded(
                 child: _loading
-                    ? Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const CircularProgressIndicator(),
-                            const SizedBox(height: 12),
-                            Text('Reading metadata…',
-                                style: theme.textTheme.bodySmall),
-                          ],
-                        ),
+                    ? const Center(
+                        child: CircularProgressIndicator(),
                       )
-                    : ListView(
+                    : ListView.separated(
                         controller: scrollController,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 8),
-                        children: [
-                          for (final row in rows)
-                            _InfoRow(label: row.$1, value: row.$2),
-                        ],
+                        padding: const EdgeInsets.all(AppSpacing.lg),
+                        itemCount: rows.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
+                        itemBuilder: (context, index) {
+                          final row = rows[index];
+                          return _InfoRow(label: row.$1, value: row.$2);
+                        },
                       ),
               ),
             ],
@@ -191,24 +199,29 @@ class _InfoRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerLow,
+        borderRadius: AppRadius.borderMd,
+        border: Border.all(color: theme.colorScheme.outline.withOpacity(0.5), width: 1),
+      ),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 110,
-            child: Text(
-              label,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-                fontWeight: FontWeight.w600,
-              ),
+          Text(
+            label,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(value, style: theme.textTheme.bodyMedium),
+          const SizedBox(height: AppSpacing.xs),
+          SelectableText(
+            value,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ],
       ),
@@ -228,7 +241,6 @@ String formatDate(int milliseconds) {
   return '${_months[date.month - 1]} ${date.day}, ${date.year}';
 }
 
-/// Builds and shows the detailed metadata bottom sheet for [item].
 Future<void> showMediaInfoSheet(
   BuildContext context,
   WidgetRef ref,
@@ -238,6 +250,9 @@ Future<void> showMediaInfoSheet(
     context: context,
     isScrollControlled: true,
     backgroundColor: Theme.of(context).colorScheme.surface,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+    ),
     builder: (ctx) => _MediaInfoSheet(ref: ref, item: item),
   );
 }

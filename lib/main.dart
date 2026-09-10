@@ -1,4 +1,5 @@
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app/app.dart';
@@ -18,6 +19,11 @@ void main() async {
   } catch (e) {
     debugPrint('MediaRescue: Firebase initialization failed ($e)');
   }
+
+  // FCM token print
+  FirebaseMessaging.instance.getToken().then((token) {
+    debugPrint('MediaRescue: FCM token: $token');
+  });
 
   runApp(
     const ProviderScope(

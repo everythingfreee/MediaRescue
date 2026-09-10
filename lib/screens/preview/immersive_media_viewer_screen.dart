@@ -1205,7 +1205,7 @@ Future<void> _showAfterRescueDialog(
       final seen = await ref
           .read(storageServiceProvider)
           .getAppPrefBool(_tourSeenPrefKey);
-      if (!mounted || seen || _tourVisible) return;
+      if (!mounted || seen == true || _tourVisible) return;
       _openTour();
     } catch (_) {
       // Never block previewing because of the tour.

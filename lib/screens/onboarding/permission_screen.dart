@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../providers/storage_provider.dart';
+import 'package:hugeicons/hugeicons.dart';
+import '../../app/theme/app_colors.dart';
+import '../../app/theme/app_radius.dart';
+import '../../app/theme/app_spacing.dart';
 import '../../providers/scanner_provider.dart';
+import '../../providers/storage_provider.dart';
 import '../../services/notification_service.dart';
+import '../../widgets/app_button.dart';
+import '../../widgets/app_card.dart';
 
 class PermissionScreen extends ConsumerStatefulWidget {
   const PermissionScreen({super.key});
@@ -31,7 +37,6 @@ class _PermissionScreenState extends ConsumerState<PermissionScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // When the user returns from the system settings page, re-check permission.
     if (state == AppLifecycleState.resumed) {
       _checkAccess();
     }
@@ -42,10 +47,7 @@ class _PermissionScreenState extends ConsumerState<PermissionScreen>
     final granted = await storageService.hasAccess();
     if (!mounted) return;
     if (granted) {
-      // Start the full-storage scan and navigate home.
       ref.read(scanControllerProvider.notifier).startScan();
-      // After onboarding completes, ask for notification permission once
-      // (Android only shows the dialog while the OS status is undecided).
       NotificationService.requestPermissionIfNeeded();
       context.go('/home');
     }
@@ -57,8 +59,6 @@ class _PermissionScreenState extends ConsumerState<PermissionScreen>
     await storageService.requestAccess();
     if (!mounted) return;
     setState(() => _isLoading = false);
-    // The user will return from the system settings page.
-    // didChangeAppLifecycleState → _checkAccess handles the rest.
   }
 
   @override
@@ -68,70 +68,74 @@ class _PermissionScreenState extends ConsumerState<PermissionScreen>
     return Scaffold(
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(24.0),
+          padding: AppSpacing.pagePadding,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Image.asset(
-                'assets/images/icon.png',
-                height: 110,
+              Center(
+                child: Container(
+                  width: 100,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary.withOpacity(0.12),
+                    borderRadius: AppRadius.borderLg,
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: Image.asset(
+                    'assets/images/icon.png',
+                    fit: BoxFit.cover,
+                  ),
+                ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: AppSpacing.xl),
               Text(
                 'Welcome to MediaRescue',
-                style: theme.textTheme.headlineMedium,
+                style: theme.textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.md),
               Text(
-                'MediaRescue needs full access to your device storage to find '
-                'hidden media files, analyze storage usage, and help you manage '
-                'large files.',
-                style: theme.textTheme.bodyLarge,
+                'MediaRescue requires storage access to discover lost media, index hidden files, and help you free up space.',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 24),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _BulletPoint(
-                        icon: Icons.visibility,
-                        text: 'Scan every folder on your device',
-                      ),
-                      const SizedBox(height: 8),
-                      _BulletPoint(
-                        icon: Icons.search,
-                        text: 'Find hidden media and large files',
-                      ),
-                      const SizedBox(height: 8),
-                      _BulletPoint(
-                        icon: Icons.lock_outline,
-                        text: 'Everything stays on your device — nothing is uploaded',
-                      ),
-                    ],
-                  ),
+              const SizedBox(height: AppSpacing.xl),
+              AppCard(
+                child: Column(
+                  children: const [
+                    _BulletPoint(
+                      icon: HugeIcons.strokeRoundedSearch01,
+                      text: 'Scan storage for hidden files',
+                    ),
+                    SizedBox(height: AppSpacing.md),
+                    _BulletPoint(
+                      icon: HugeIcons.strokeRoundedHardDrive,
+                      text: 'Identify & clean large files',
+                    ),
+                    SizedBox(height: AppSpacing.md),
+                    _BulletPoint(
+                      icon: HugeIcons.strokeRoundedSecurityCheck,
+                      text: 'Everything stays strictly on your device',
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 32),
-              if (_isLoading)
-                const Center(child: CircularProgressIndicator())
-              else
-                FilledButton.icon(
-                  onPressed: _requestAccess,
-                  icon: const Icon(Icons.security),
-                  label: const Text('Grant Full Storage Access'),
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size.fromHeight(56),
-                  ),
-                ),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpacing.xxl),
+              AppButton(
+                label: 'Grant Storage Access',
+                icon: const HugeIcon(icon: HugeIcons.strokeRoundedSecurityCheck, color: Colors.white),
+                onPressed: _requestAccess,
+                isLoading: _isLoading,
+                isFullWidth: true,
+              ),
+              const SizedBox(height: AppSpacing.md),
               Text(
-                'You will be taken to Android settings. Enable '
-                '"Allow access to manage all files" and return to MediaRescue.',
+                'You will be navigated to Android System Settings. Enable "Allow access to manage all files".',
                 style: theme.textTheme.bodySmall,
                 textAlign: TextAlign.center,
               ),
@@ -144,7 +148,7 @@ class _PermissionScreenState extends ConsumerState<PermissionScreen>
 }
 
 class _BulletPoint extends StatelessWidget {
-  final IconData icon;
+  final List<List<dynamic>> icon;
   final String text;
 
   const _BulletPoint({required this.icon, required this.text});
@@ -153,9 +157,14 @@ class _BulletPoint extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
-        const SizedBox(width: 12),
-        Expanded(child: Text(text)),
+        HugeIcon(icon: icon, color: AppColors.primary, size: 20),
+        const SizedBox(width: AppSpacing.md),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+        ),
       ],
     );
   }

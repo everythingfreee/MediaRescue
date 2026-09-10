@@ -2,6 +2,7 @@ package com.shaheer.mediarescue.mediarescue
 
 import android.Manifest
 import android.content.ActivityNotFoundException
+import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
@@ -12,6 +13,8 @@ import android.media.MediaFormat
 import android.media.MediaMetadataRetriever
 import android.media.MediaScannerConnection
 import android.net.Uri
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
@@ -52,6 +55,11 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(@NonNull flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+
+        // ── FCM notification channel with custom sound ───────────────────────
+        // Created natively so it exists even when the app is in background and
+        // FCM handles the notification display (before Flutter initializes).
+        createNotificationChannel()
 
         // ── Method channel for storage operations ─────────────────────────────
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
@@ -151,6 +159,37 @@ class MainActivity : FlutterActivity() {
         // sink is invoked (EventSink must only be used on the main thread).
         ShizukuManager.INSTANCE.setEventSink { event -> advancedScanSink?.success(event) }
         ShizukuManager.INSTANCE.register()
+    }
+
+    /**
+     * Creates the FCM notification channel with a custom sound from
+     * res/raw/notification.mp3. This runs natively so the channel exists
+     * even when the app is in background and FCM displays the notification
+     * before Flutter initializes.
+     */
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channelId = "mediarescue_updates"
+            val channelName = "Update notifications"
+            val channelDescription = "Announcements about new MediaRescue releases"
+            val importance = NotificationManager.IMPORTANCE_HIGH
+
+            val channel = NotificationChannel(channelId, channelName, importance).apply {
+                description = channelDescription
+                // Custom sound from res/raw/notification.mp3
+                val soundUri = android.net.Uri.parse(
+                    "android.resource://$packageName/raw/notification"
+                )
+                val audioAttributes = android.media.AudioAttributes.Builder()
+                    .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION)
+                    .build()
+                setSound(soundUri, audioAttributes)
+            }
+
+            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.createNotificationChannel(channel)
+        }
     }
 
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
@@ -1204,7 +1243,13 @@ class MainActivity : FlutterActivity() {
 
     private fun handleGetAppPrefBool(call: MethodCall, result: MethodChannel.Result) {
         val key = call.argument<String>("key") ?: ""
-        result.success(appPrefs.getBoolean(key, false))
+        // Return null when the key doesn't exist so Flutter can distinguish
+        // between "not set" (first launch, default ON) and "explicitly OFF".
+        if (appPrefs.contains(key)) {
+            result.success(appPrefs.getBoolean(key, false))
+        } else {
+            result.success(null)
+        }
     }
 
     private fun handleSetAppPrefBool(call: MethodCall, result: MethodChannel.Result) {

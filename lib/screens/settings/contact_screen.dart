@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
-
+import 'package:hugeicons/hugeicons.dart';
+import '../../app/theme/app_colors.dart';
+import '../../app/theme/app_spacing.dart';
 import '../../services/link_service.dart';
+import '../../widgets/app_button.dart';
+import '../../widgets/app_card.dart';
 
-/// Contact page: official support email and GitHub repository links.
-/// Reachable via Settings → About → Contact.
 class ContactScreen extends StatelessWidget {
   const ContactScreen({super.key});
 
@@ -14,79 +16,83 @@ class ContactScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Contact')),
       body: ListView(
+        padding: AppSpacing.pagePadding,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
-            child: Text(
-              'Questions, feedback or a bug to report? MediaRescue is an '
-              'open-source project — reach out any time.',
-              style: theme.textTheme.bodyLarge,
+          Text(
+            'Questions, feedback or a bug report? MediaRescue is an open-source project — reach out any time.',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
-          const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
+          const SizedBox(height: AppSpacing.lg),
+          AppCard(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      children: [
-                        Text(
-                          LinkService.contactEmail,
-                          style: theme.textTheme.titleMedium,
-                          textAlign: TextAlign.center,
+                const HugeIcon(icon: HugeIcons.strokeRoundedMail01, size: 48, color: AppColors.primary),
+                const SizedBox(height: AppSpacing.md),
+                Text(
+                  LinkService.contactEmail,
+                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: AppSpacing.md),
+                AppButton(
+                  label: 'Send Email',
+                  icon: const HugeIcon(icon: HugeIcons.strokeRoundedMail01, color: Colors.white),
+                  onPressed: () async {
+                    final ok = await LinkService.openEmailCompose();
+                    if (!ok && context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('No email application is available on this device.'),
                         ),
-                        const SizedBox(height: 12),
-                        FilledButton.icon(
-                          onPressed: () async {
-                            final ok = await LinkService.openEmailCompose();
-                            if (!ok && context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'No email application is available on '
-                                    'this device.',
-                                  ),
-                                ),
-                              );
-                            }
-                          },
-                          icon: const Icon(Icons.mail_outline),
-                          label: const Text('Email Us'),
-                        ),
-                      ],
-                    ),
-                  ),
+                      );
+                    }
+                  },
                 ),
               ],
             ),
           ),
-          const Divider(height: 32),
-          const _SectionHeader(label: 'Project'),
-          ListTile(
-            leading: const Icon(Icons.code),
-            title: const Text('GitHub'),
-            subtitle: const Text(LinkService.githubUrl),
-            onTap: () async {
-              final ok = await LinkService.openUrl(LinkService.githubUrl);
-              if (!ok && context.mounted) {
-                _showOpenFailed(context);
-              }
-            },
+          const SizedBox(height: AppSpacing.xl),
+          Text(
+            'PROJECT LINKS',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.primary,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.2,
+            ),
           ),
-          ListTile(
-            leading: const Icon(Icons.bug_report_outlined),
-            title: const Text('Report an Issue'),
-            subtitle: const Text(LinkService.githubIssuesUrl),
-            onTap: () async {
-              final ok = await LinkService.openUrl(LinkService.githubIssuesUrl);
-              if (!ok && context.mounted) {
-                _showOpenFailed(context);
-              }
-            },
+          const SizedBox(height: AppSpacing.sm),
+          AppCard(
+            child: Column(
+              children: [
+                ListTile(
+                  leading: const HugeIcon(icon: HugeIcons.strokeRoundedCode, color: AppColors.primary),
+                  title: const Text('GitHub Repository'),
+                  subtitle: const Text(LinkService.githubUrl),
+                  trailing: const HugeIcon(icon: HugeIcons.strokeRoundedLinkSquare02, size: 18),
+                  onTap: () async {
+                    final ok = await LinkService.openUrl(LinkService.githubUrl);
+                    if (!ok && context.mounted) {
+                      _showOpenFailed(context);
+                    }
+                  },
+                ),
+                const Divider(),
+                ListTile(
+                  leading: const HugeIcon(icon: HugeIcons.strokeRoundedBug01, color: AppColors.error),
+                  title: const Text('Report an Issue'),
+                  subtitle: const Text(LinkService.githubIssuesUrl),
+                  trailing: const HugeIcon(icon: HugeIcons.strokeRoundedLinkSquare02, size: 18),
+                  onTap: () async {
+                    final ok = await LinkService.openUrl(LinkService.githubIssuesUrl);
+                    if (!ok && context.mounted) {
+                      _showOpenFailed(context);
+                    }
+                  },
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -97,29 +103,6 @@ class ContactScreen extends StatelessWidget {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('No application is available to open this link.'),
-      ),
-    );
-  }
-}
-
-class _SectionHeader extends StatelessWidget {
-  final String label;
-
-  const _SectionHeader({required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      child: Text(
-        label.toUpperCase(),
-        style: TextStyle(
-          color: theme.colorScheme.primary,
-          fontWeight: FontWeight.bold,
-          fontSize: 12,
-          letterSpacing: 1.2,
-        ),
       ),
     );
   }

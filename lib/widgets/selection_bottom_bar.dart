@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../providers/browser_provider.dart';
-import '../../providers/selection_provider.dart';
-import '../../providers/storage_provider.dart';
-import '../../models/file_item.dart';
+import 'package:hugeicons/hugeicons.dart';
+import '../app/theme/app_colors.dart';
+import '../app/theme/app_radius.dart';
+import '../app/theme/app_spacing.dart';
+import '../models/file_item.dart';
+import '../providers/browser_provider.dart';
+import '../providers/selection_provider.dart';
+import '../providers/storage_provider.dart';
 
 class SelectionBottomBar extends ConsumerWidget {
   final List<FileItem> allFiles;
@@ -40,7 +44,7 @@ class SelectionBottomBar extends ConsumerWidget {
           ),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
             child: const Text('Delete'),
           ),
         ],
@@ -71,19 +75,46 @@ class SelectionBottomBar extends ConsumerWidget {
         .where((f) => selected.contains(f.path))
         .fold<int>(0, (sum, f) => sum + f.size);
 
-    return BottomAppBar(
-      color: theme.colorScheme.secondaryContainer,
+    return Container(
+      margin: const EdgeInsets.all(AppSpacing.lg),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: AppRadius.borderPill,
+        border: Border.all(color: theme.colorScheme.outline, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.12),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: Row(
         children: [
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.xs + 2),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primary.withOpacity(0.15),
+              shape: BoxShape.circle,
+            ),
+            child: Text(
+              '${selected.length}',
+              style: theme.textTheme.labelLarge?.copyWith(
+                color: theme.colorScheme.primary,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${selected.length} selected',
-                  style: theme.textTheme.titleMedium
-                      ?.copyWith(fontWeight: FontWeight.bold),
+                  '${selected.length} items selected',
+                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
                 ),
                 Text(
                   _formatSize(totalSize),
@@ -93,21 +124,20 @@ class SelectionBottomBar extends ConsumerWidget {
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.select_all),
+            icon: const HugeIcon(icon: HugeIcons.strokeRoundedCheckList, color: AppColors.primary),
             tooltip: 'Select all',
             onPressed: () =>
                 ref.read(selectionProvider.notifier).selectAll(allFiles),
           ),
           IconButton(
-            icon: const Icon(Icons.delete_outline),
+            icon: const HugeIcon(icon: HugeIcons.strokeRoundedDelete02, color: AppColors.error),
             tooltip: 'Delete',
-            color: Colors.red,
             onPressed: selected.isEmpty
                 ? null
                 : () => _confirmDelete(context, ref, selected),
           ),
           IconButton(
-            icon: const Icon(Icons.close),
+            icon: HugeIcon(icon: HugeIcons.strokeRoundedCancel01, color: theme.colorScheme.onSurface),
             tooltip: 'Cancel selection',
             onPressed: () => ref.read(selectionProvider.notifier).clear(),
           ),

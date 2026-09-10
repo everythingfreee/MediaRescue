@@ -2,13 +2,18 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hugeicons/hugeicons.dart';
+import '../../app/theme/app_colors.dart';
+import '../../app/theme/app_radius.dart';
+import '../../app/theme/app_spacing.dart';
+import '../../app/theme/app_typography.dart';
 import '../../models/file_item.dart';
 import '../../models/smart_filter.dart';
 import '../../providers/filter_provider.dart';
 import '../../providers/scanner_provider.dart';
-import '../../widgets/thumbnail_image.dart';
-import '../../widgets/smart_filter_sheet.dart';
 import '../../widgets/file_actions_sheet.dart';
+import '../../widgets/smart_filter_sheet.dart';
+import '../../widgets/thumbnail_image.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});
@@ -30,7 +35,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   void _onQueryChanged(String value) {
     _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 400), () {
+    _debounce = Timer(const Duration(milliseconds: 300), () {
       ref.read(searchQueryProvider.notifier).set(value);
     });
   }
@@ -46,12 +51,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   void _openFile(BuildContext context, dynamic item, List<dynamic> results) {
     if (item.isImage || item.isVideo) {
-      // Pass every image/video in the current result set so the immersive
-      // feed supports vertical browsing across both types.
       final media = results.where((f) => f.isImage || f.isVideo).toList();
       context.push('/preview/media', extra: {'item': item, 'allFiles': media});
     } else if (item.isAudio) {
-      // Pass the audio files so next/previous works in the player.
       final audios = results.where((f) => f.isAudio).toList();
       context.push('/preview/audio', extra: {'item': item, 'allFiles': audios});
     } else if (item.isPdf) {
@@ -77,10 +79,19 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           controller: _controller,
           onChanged: _onQueryChanged,
           autofocus: false,
-          decoration: const InputDecoration(
-            hintText: 'Search files...',
+          decoration: InputDecoration(
+            hintText: 'Search indexed media by name...',
             border: InputBorder.none,
-            prefixIcon: Icon(Icons.search),
+            prefixIcon: const HugeIcon(icon: HugeIcons.strokeRoundedSearch01, size: 20),
+            suffixIcon: _controller.text.isNotEmpty
+                ? IconButton(
+                    icon: const HugeIcon(icon: HugeIcons.strokeRoundedCancel01, size: 18),
+                    onPressed: () {
+                      _controller.clear();
+                      ref.read(searchQueryProvider.notifier).set('');
+                    },
+                  )
+                : null,
           ),
         ),
         actions: [
@@ -89,12 +100,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             icon: Badge(
               isLabelVisible: filter.isActive,
               label: Text('${filter.activeGroupCount}'),
-              child: Icon(filter.isActive
-                  ? Icons.filter_alt
-                  : Icons.filter_alt_outlined),
+              child: HugeIcon(
+                icon: HugeIcons.strokeRoundedFilter,
+                color: filter.isActive ? AppColors.primary : Theme.of(context).colorScheme.onSurface,
+              ),
             ),
             onPressed: () => showSmartFilterSheet(context),
           ),
+          const SizedBox(width: AppSpacing.xs),
         ],
       ),
       body: isScanning
@@ -103,7 +116,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   CircularProgressIndicator(),
-                  SizedBox(height: 16),
+                  SizedBox(height: AppSpacing.md),
                   Text('Scanning storage...'),
                 ],
               ),
@@ -125,9 +138,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.search, size: 64, color: Colors.grey),
-            SizedBox(height: 16),
-            Text('Search for files by name'),
+            HugeIcon(icon: HugeIcons.strokeRoundedSearch01, size: 64, color: AppColors.other),
+            SizedBox(height: AppSpacing.md),
+            Text('Search files by filename or filter criteria'),
           ],
         ),
       );
@@ -137,28 +150,28 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.search_off, size: 64, color: Colors.grey),
-            SizedBox(height: 16),
-            Text('No files found'),
+            HugeIcon(icon: HugeIcons.strokeRoundedSearch01, size: 64, color: AppColors.error),
+            SizedBox(height: AppSpacing.md),
+            Text('No files found matching search'),
           ],
         ),
       );
     }
-    return ListView.builder(
+    return ListView.separated(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
       itemCount: results.length,
+      separatorBuilder: (_, __) => const Divider(height: 1),
       itemBuilder: (context, index) {
         final item = results[index];
         return ListTile(
-          leading: ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: ThumbnailImage(item: item, width: 44, height: 44),
-          ),
-          title: Text(item.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+          leading: ThumbnailImage(item: item, width: 44, height: 44, borderRadius: AppRadius.sm),
+          title: Text(item.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600)),
           subtitle: Text(
             '${_formatSize(item.size)}  •  ${item.mimeType ?? 'Unknown'}',
+            style: AppTypography.codeMono,
           ),
           trailing: IconButton(
-            icon: const Icon(Icons.more_vert),
+            icon: const HugeIcon(icon: HugeIcons.strokeRoundedMoreVertical, size: 18),
             tooltip: 'File actions',
             onPressed: () => showFileActionsSheet(
               context,
@@ -174,7 +187,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 }
 
-/// Displays the currently active filters as removable chips above the results.
 class _ActiveFilterBar extends ConsumerWidget {
   const _ActiveFilterBar({required this.filter});
 
@@ -187,14 +199,8 @@ class _ActiveFilterBar extends ConsumerWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-        border: Border(
-          bottom:
-              BorderSide(color: theme.colorScheme.outlineVariant, width: 0.5),
-        ),
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs),
+      color: theme.colorScheme.surfaceContainerLow,
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
@@ -202,7 +208,7 @@ class _ActiveFilterBar extends ConsumerWidget {
             if (filter.types.isNotEmpty)
               ...filter.types.map(
                 (type) => Padding(
-                  padding: const EdgeInsets.only(right: 8),
+                  padding: const EdgeInsets.only(right: AppSpacing.xs),
                   child: InputChip(
                     label: Text(_typeChipLabel(type)),
                     onDeleted: () => notifier.toggleType(type),
@@ -212,7 +218,7 @@ class _ActiveFilterBar extends ConsumerWidget {
               ),
             if (filter.hasSizeFilter)
               Padding(
-                padding: const EdgeInsets.only(right: 8),
+                padding: const EdgeInsets.only(right: AppSpacing.xs),
                 child: InputChip(
                   label: Text(_sizeChipLabel(filter.sizeFilter)),
                   onDeleted: () =>
@@ -222,26 +228,11 @@ class _ActiveFilterBar extends ConsumerWidget {
               ),
             if (filter.hasDateFilter)
               Padding(
-                padding: const EdgeInsets.only(right: 8),
+                padding: const EdgeInsets.only(right: AppSpacing.xs),
                 child: InputChip(
                   label: Text(_dateChipLabel(filter.dateFilter)),
                   onDeleted: () =>
                       notifier.setDateFilter(ModifiedDateFilter.any),
-                  visualDensity: VisualDensity.compact,
-                ),
-              ),
-            if (filter.hasLocationFilter)
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: InputChip(
-                  label: Text(filter.internalStorage
-                      ? 'Internal only'
-                      : 'SD Card only'),
-                  onDeleted: () {
-                    // Reset both locations back to a "no restriction" state.
-                    notifier.setInternalStorage(true);
-                    notifier.setSdCard(true);
-                  },
                   visualDensity: VisualDensity.compact,
                 ),
               ),

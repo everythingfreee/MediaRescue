@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hugeicons/hugeicons.dart';
+import '../../app/theme/app_colors.dart';
+import '../../app/theme/app_radius.dart';
+import '../../app/theme/app_spacing.dart';
+import '../../app/theme/app_typography.dart';
+import '../../models/file_item.dart';
 import '../../providers/browser_provider.dart';
 import '../../providers/selection_provider.dart';
-import '../../models/file_item.dart';
-import '../../widgets/thumbnail_image.dart';
 import '../../widgets/selection_bottom_bar.dart';
+import '../../widgets/thumbnail_image.dart';
 
 class BrowseScreen extends ConsumerStatefulWidget {
   const BrowseScreen({super.key});
@@ -17,30 +22,24 @@ class BrowseScreen extends ConsumerStatefulWidget {
 class _BrowseScreenState extends ConsumerState<BrowseScreen> {
   @override
   void dispose() {
-    // Clear selection when leaving
     ref.read(selectionProvider.notifier).clear();
     super.dispose();
   }
 
-  /// Handles the Android system back button.
-  /// Priority: close selection mode → navigate to parent → default behavior.
   bool _handleBack() {
     final selection = ref.read(selectionProvider);
     final path = ref.read(currentPathProvider);
 
-    // 1. Exit selection mode if active
     if (selection.isNotEmpty) {
       ref.read(selectionProvider.notifier).clear();
       return true;
     }
 
-    // 2. Navigate to parent directory if not at root
     if (path.isNotEmpty) {
       ref.read(currentPathProvider.notifier).goBack();
       return true;
     }
 
-    // 3. At root — allow default back behavior (previous screen / exit)
     return false;
   }
 
@@ -56,7 +55,6 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
         if (didPop) return;
         final handled = _handleBack();
         if (!handled) {
-          // Allow the app to navigate back / exit
           if (context.canPop()) {
             context.pop();
           }
@@ -66,15 +64,13 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
         appBar: AppBar(
           leading: currentPath.isNotEmpty
               ? IconButton(
-                  icon: const Icon(Icons.arrow_back),
+                  icon: const HugeIcon(icon: HugeIcons.strokeRoundedArrowLeft01),
                   onPressed: () {
                     ref.read(currentPathProvider.notifier).goBack();
                   },
                 )
               : null,
-          title: isSelectionMode
-              ? const Text('Select Files')
-              : const Text('Browse Files'),
+          title: Text(isSelectionMode ? 'Select Files' : 'Browse Storage'),
           bottom: PreferredSize(
             preferredSize: const Size.fromHeight(48),
             child: _buildBreadcrumbs(currentPath),
@@ -83,7 +79,7 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
             if (!isSelectionMode)
               directoryAsync.when(
                 data: (files) => IconButton(
-                  icon: const Icon(Icons.checklist),
+                  icon: const HugeIcon(icon: HugeIcons.strokeRoundedCheckList, color: AppColors.primary),
                   tooltip: 'Select',
                   onPressed: files.isNotEmpty
                       ? () => ref
@@ -101,12 +97,12 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (err, stack) => Center(
             child: Padding(
-              padding: const EdgeInsets.all(24.0),
+              padding: AppSpacing.pagePadding,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.folder_off, size: 64, color: Colors.grey),
-                  const SizedBox(height: 16),
+                  const HugeIcon(icon: HugeIcons.strokeRoundedFolderOff, size: 64, color: AppColors.error),
+                  const SizedBox(height: AppSpacing.md),
                   Text('$err', textAlign: TextAlign.center),
                 ],
               ),
@@ -124,15 +120,17 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
   }
 
   Widget _buildBreadcrumbs(List<String> path) {
+    final theme = Theme.of(context);
     return Container(
       height: 48,
       alignment: Alignment.centerLeft,
+      color: theme.colorScheme.surfaceContainerLow,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
         itemCount: path.length + 1,
         separatorBuilder: (context, index) =>
-            const Icon(Icons.chevron_right, size: 16),
+            const HugeIcon(icon: HugeIcons.strokeRoundedArrowRight01, size: 14),
         itemBuilder: (context, index) {
           final isRoot = index == 0;
           final name = isRoot ? 'Internal Storage' : path[index - 1];
@@ -145,7 +143,6 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
                     if (isRoot) {
                       ref.read(currentPathProvider.notifier).goToRoot();
                     } else {
-                      // Pop back to the selected index
                       final notifier = ref.read(currentPathProvider.notifier);
                       final popsNeeded = path.length - index;
                       for (int i = 0; i < popsNeeded; i++) {
@@ -157,6 +154,7 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
               name,
               style: TextStyle(
                 fontWeight: isLast ? FontWeight.bold : FontWeight.normal,
+                color: isLast ? theme.colorScheme.primary : theme.colorScheme.onSurface,
               ),
             ),
           );
@@ -171,15 +169,14 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.folder_open, size: 64, color: Colors.grey),
-            SizedBox(height: 16),
-            Text('This folder is empty'),
+            HugeIcon(icon: HugeIcons.strokeRoundedFolderOpen, size: 64, color: AppColors.other),
+            SizedBox(height: AppSpacing.md),
+            Text('This directory is empty'),
           ],
         ),
       );
     }
 
-    // Sort: folders first, then by name
     final sortedFiles = List<FileItem>.from(files)
       ..sort((a, b) {
         if (a.isDirectory && !b.isDirectory) return -1;
@@ -187,8 +184,10 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
         return a.name.toLowerCase().compareTo(b.name.toLowerCase());
       });
 
-    return ListView.builder(
+    return ListView.separated(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
       itemCount: sortedFiles.length,
+      separatorBuilder: (_, __) => const Divider(height: 1),
       itemBuilder: (context, index) {
         final item = sortedFiles[index];
         return _FileListTile(item: item, allFiles: sortedFiles);
@@ -213,62 +212,51 @@ class _FileListTile extends ConsumerWidget {
   }
 
   void _openFile(BuildContext context, WidgetRef ref, FileItem item) {
-    if (item.isImage || item.isVideo) {
-      // Pass every image/video in the current folder so the immersive feed
-      // supports vertical browsing across both types.
+    if (item.isDirectory) {
+      ref.read(currentPathProvider.notifier).navigateTo(item.name);
+    } else if (item.isImage || item.isVideo) {
       final media = allFiles.where((f) => f.isImage || f.isVideo).toList();
       context.push('/preview/media', extra: {'item': item, 'allFiles': media});
     } else if (item.isAudio) {
-      // Pass the folder's audio files so next/previous works in the player.
-      final audios = allFiles.where((f) => f.isAudio).toList();
-      context.push('/preview/audio', extra: {'item': item, 'allFiles': audios});
+      context.push('/preview/audio', extra: {'item': item, 'allFiles': allFiles});
     } else if (item.isPdf) {
       context.push('/preview/pdf', extra: item);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cannot preview this file type yet.')),
+        const SnackBar(content: Text('Cannot preview this file type.')),
       );
     }
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final selection = ref.watch(selectionProvider);
+    final isSelected = selection.contains(item.path);
     final isSelectionMode = ref.watch(isSelectionModeProvider);
-    final isSelected = ref.watch(
-      selectionProvider.select((set) => set.contains(item.path)),
-    );
 
     return ListTile(
       selected: isSelected,
-      selectedTileColor:
-          Theme.of(context).colorScheme.secondaryContainer.withValues(alpha: 0.5),
-      leading: isSelectionMode
+      leading: isSelectionMode && !item.isDirectory
           ? Checkbox(
               value: isSelected,
-              onChanged: (_) =>
-                  ref.read(selectionProvider.notifier).toggle(item),
+              onChanged: (_) => ref.read(selectionProvider.notifier).toggle(item),
             )
-          : ClipRRect(
-              borderRadius: BorderRadius.circular(6),
-              child: ThumbnailImage(item: item, width: 44, height: 44),
-            ),
+          : ThumbnailImage(item: item, width: 44, height: 44, borderRadius: AppRadius.sm),
       title: Text(
         item.name,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
+        style: const TextStyle(fontWeight: FontWeight.w600),
       ),
-      subtitle: Text(
-        item.isDirectory
-            ? 'Folder'
-            : '${item.mimeType ?? 'Unknown type'}  •  ${_formatSize(item.size)}',
-      ),
-      trailing: item.isDirectory ? const Icon(Icons.chevron_right) : null,
+      subtitle: item.isDirectory
+          ? const Text('Directory')
+          : Text(_formatSize(item.size), style: AppTypography.codeMono),
+      trailing: item.isDirectory
+          ? const HugeIcon(icon: HugeIcons.strokeRoundedArrowRight01, size: 18)
+          : null,
       onTap: () {
         if (isSelectionMode && !item.isDirectory) {
           ref.read(selectionProvider.notifier).toggle(item);
-        } else if (item.isDirectory) {
-          ref.read(selectionProvider.notifier).clear();
-          ref.read(currentPathProvider.notifier).navigateTo(item.name);
         } else {
           _openFile(context, ref, item);
         }

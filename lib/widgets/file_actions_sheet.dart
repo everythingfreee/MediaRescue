@@ -1,26 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hugeicons/hugeicons.dart';
 
+import '../app/theme/app_radius.dart';
+import '../app/theme/app_spacing.dart';
 import '../models/file_item.dart';
 import '../providers/browser_provider.dart';
 import '../providers/selection_provider.dart';
 import '../providers/storage_provider.dart';
 import 'media_info_sheet.dart';
 
-/// Shared "select a file → actions" entry point used by the Search, Large
-/// Files and Hidden Media screens. Keeps the existing MediaRescue design
-/// language and never removes existing per-screen actions.
-///
-/// Available actions:
-///  - [Information]  — the existing detailed metadata sheet.
-///  - [Open Location]— the in-app folder browser at the file's directory
-///    (falls back to the system file manager for paths outside the shared
-///    internal storage root, e.g. SD cards).
-///  - [Preview]      — optional [onOpen] callback (the caller's normal tap
-///    behaviour), shown only when provided.
-///  - [additionalActions] — caller-specific entries (e.g. "Why hidden?" on
-///    the Hidden Media screen), rendered after Information.
 Future<void> showFileActionsSheet(
   BuildContext context,
   WidgetRef ref,
@@ -28,84 +18,103 @@ Future<void> showFileActionsSheet(
   VoidCallback? onOpen,
   List<Widget> additionalActions = const [],
 }) async {
+  final theme = Theme.of(context);
+  
   await showModalBottomSheet<void>(
     context: context,
-    backgroundColor: Theme.of(context).colorScheme.surface,
+    backgroundColor: theme.colorScheme.surface,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+    ),
     builder: (ctx) => SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ListTile(
-            leading: ClipRRect(
-              borderRadius: BorderRadius.circular(6),
-              child: Icon(
-                item.isImage
-                    ? Icons.image
-                    : item.isVideo
-                    ? Icons.video_file
-                    : item.isAudio
-                    ? Icons.audiotrack
-                    : item.isPdf
-                    ? Icons.picture_as_pdf
-                    : Icons.insert_drive_file,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Bottom sheet drag handle
+            Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.outline,
+                borderRadius: AppRadius.borderPill,
               ),
             ),
-            title: Text(
-              item.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            subtitle: Text(
-              item.parentDirectory,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          const Divider(height: 1),
-          if (onOpen != null)
+            const SizedBox(height: AppSpacing.md),
             ListTile(
-              leading: const Icon(Icons.play_circle_outline),
-              title: const Text('Preview'),
+              leading: Container(
+                padding: const EdgeInsets.all(AppSpacing.sm),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primaryContainer.withOpacity(0.5),
+                  borderRadius: AppRadius.borderSm,
+                ),
+                child: HugeIcon(
+                  icon: item.isImage
+                      ? HugeIcons.strokeRoundedImage01
+                      : item.isVideo
+                      ? HugeIcons.strokeRoundedVideo01
+                      : item.isAudio
+                      ? HugeIcons.strokeRoundedMusicNote01
+                      : item.isPdf
+                      ? HugeIcons.strokeRoundedPdf01
+                      : HugeIcons.strokeRoundedFile01,
+                  color: theme.colorScheme.primary,
+                ),
+              ),
+              title: Text(
+                item.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              subtitle: Text(
+                item.parentDirectory,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall,
+              ),
+            ),
+            const Divider(height: 16),
+            if (onOpen != null)
+              ListTile(
+                leading: const HugeIcon(icon: HugeIcons.strokeRoundedPlayCircle, color: Colors.blue),
+                title: const Text('Preview'),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  onOpen();
+                },
+              ),
+            ListTile(
+              leading: const HugeIcon(icon: HugeIcons.strokeRoundedInformationCircle, color: Colors.purple),
+              title: const Text('Information'),
               onTap: () {
                 Navigator.of(ctx).pop();
-                onOpen();
+                showMediaInfoSheet(context, ref, item);
               },
             ),
-          ListTile(
-            leading: const Icon(Icons.info_outline),
-            title: const Text('Information'),
-            onTap: () {
-              Navigator.of(ctx).pop();
-              showMediaInfoSheet(context, ref, item);
-            },
-          ),
-          ...additionalActions,
-          ListTile(
-            leading: const Icon(Icons.folder_open),
-            title: const Text('Open Location'),
-            subtitle: Text(
-              item.parentDirectory,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+            ...additionalActions,
+            ListTile(
+              leading: const HugeIcon(icon: HugeIcons.strokeRoundedFolderOpen, color: Colors.amber),
+              title: const Text('Open Location'),
+              subtitle: Text(
+                item.parentDirectory,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                openFileLocationInApp(context, ref, item);
+              },
             ),
-            onTap: () {
-              Navigator.of(ctx).pop();
-              openFileLocationInApp(context, ref, item);
-            },
-          ),
-          const SizedBox(height: 8),
-        ],
+            const SizedBox(height: AppSpacing.sm),
+          ],
+        ),
       ),
     ),
   );
 }
 
-/// Navigates the existing Browse tab to the directory containing [item].
-///
-/// Files under `/storage/emulated/0` are opened with the in-app browser
-/// (the user "lands at" the containing directory). Anything else (SD card,
-/// unexpected path) falls back to the system file manager, reusing the
-/// existing native `openFileLocation` implementation.
 void openFileLocationInApp(BuildContext context, WidgetRef ref, FileItem item) {
   final root = storageRoot;
   final parent = item.parentDirectory;
@@ -124,7 +133,6 @@ void openFileLocationInApp(BuildContext context, WidgetRef ref, FileItem item) {
     ref.read(selectionProvider.notifier).clear();
     context.go('/browse');
   } else {
-    // SD card / non-standard path — use the system file manager fallback.
     ref.read(storageServiceProvider).openFileLocation(item.path);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Opening location in file manager…')),

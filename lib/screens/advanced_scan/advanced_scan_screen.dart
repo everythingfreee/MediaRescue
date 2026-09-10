@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
-import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hugeicons/hugeicons.dart';
 
+import '../../app/theme/app_colors.dart';
+import '../../app/theme/app_radius.dart';
+import '../../app/theme/app_spacing.dart';
+import '../../app/theme/app_typography.dart';
 import '../../models/file_item.dart';
 import '../../models/smart_filter.dart';
 import '../../providers/advanced_scan_provider.dart';
@@ -12,27 +16,13 @@ import '../../providers/selection_provider.dart';
 import '../../providers/storage_provider.dart';
 import '../../services/link_service.dart';
 import '../../services/advanced_scan_service.dart';
+import '../../widgets/app_card.dart';
 import '../../widgets/file_actions_sheet.dart';
 import '../../widgets/smart_filter_sheet.dart';
 import '../../widgets/thumbnail_image.dart';
 
 enum _AdvancedSort { name, size, modified }
 
-String _formatSize(int bytes) {
-  if (bytes <= 0) return '—';
-  if (bytes < 1024) return '$bytes B';
-  if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-  if (bytes < 1024 * 1024 * 1024) {
-    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
-  }
-  return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
-}
-
-/// Dedicated Advanced Scanning screen (optional Shizuku feature).
-///
-/// Shows the live Shizuku status, guides the user through setup when needed,
-/// starts/cancels the read-only scan of Android/data and Android/obb and
-/// lists the results. Fully independent from the normal scanner.
 class AdvancedScanScreen extends ConsumerStatefulWidget {
   const AdvancedScanScreen({super.key});
 
@@ -56,8 +46,6 @@ class _AdvancedScanScreenState extends ConsumerState<AdvancedScanScreen> {
   @override
   void initState() {
     super.initState();
-    // Re-evaluate Shizuku state on every entry (no stale "Authorized" state
-    // after app restarts or permission revocation).
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         final controller = ref.read(advancedScanProvider.notifier);
@@ -88,7 +76,7 @@ class _AdvancedScanScreenState extends ConsumerState<AdvancedScanScreen> {
         actions: [
           IconButton(
             tooltip: 'Sort files',
-            icon: const Icon(Icons.sort),
+            icon: const HugeIcon(icon: HugeIcons.strokeRoundedSorting01),
             onPressed: () => _showSortMenu(context),
           ),
           IconButton(
@@ -96,8 +84,9 @@ class _AdvancedScanScreenState extends ConsumerState<AdvancedScanScreen> {
             icon: Badge(
               isLabelVisible: filter.isActive,
               label: Text('${filter.activeGroupCount}'),
-              child: Icon(
-                filter.isActive ? Icons.filter_alt : Icons.filter_alt_outlined,
+              child: HugeIcon(
+                icon: HugeIcons.strokeRoundedFilter,
+                color: filter.isActive ? AppColors.primary : Theme.of(context).colorScheme.onSurface,
               ),
             ),
             onPressed: () => showSmartFilterSheet(
@@ -107,10 +96,13 @@ class _AdvancedScanScreenState extends ConsumerState<AdvancedScanScreen> {
           ),
           IconButton(
             tooltip: _largeThumbnails ? 'List view' : 'Large thumbnails',
-            icon: Icon(_largeThumbnails ? Icons.view_list : Icons.grid_view),
+            icon: HugeIcon(
+              icon: _largeThumbnails ? HugeIcons.strokeRoundedMenu01 : HugeIcons.strokeRoundedGrid,
+            ),
             onPressed: () =>
                 setState(() => _largeThumbnails = !_largeThumbnails),
           ),
+          const SizedBox(width: AppSpacing.xs),
         ],
       ),
       body: Stack(
@@ -133,13 +125,13 @@ class _AdvancedScanScreenState extends ConsumerState<AdvancedScanScreen> {
                 ),
                 if (_largeThumbnails)
                   SliverPadding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
                     sliver: SliverGrid.builder(
                       gridDelegate:
                           const SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: 3,
-                            crossAxisSpacing: 8,
-                            mainAxisSpacing: 8,
+                            crossAxisSpacing: AppSpacing.sm,
+                            mainAxisSpacing: AppSpacing.sm,
                             childAspectRatio: .78,
                           ),
                       itemCount: files.length,
@@ -161,7 +153,7 @@ class _AdvancedScanScreenState extends ConsumerState<AdvancedScanScreen> {
                       selected: selected.contains(files[index].path),
                     ),
                   ),
-                const SliverToBoxAdapter(child: SizedBox(height: 24)),
+                const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xl)),
               ],
             ],
           ),
@@ -170,20 +162,18 @@ class _AdvancedScanScreenState extends ConsumerState<AdvancedScanScreen> {
               child: ColoredBox(
                 color: Colors.black54,
                 child: Center(
-                  child: Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const CircularProgressIndicator(),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Preparing preview…',
-                            style: theme.textTheme.titleMedium,
-                          ),
-                        ],
-                      ),
+                  child: AppCard(
+                    padding: const EdgeInsets.all(AppSpacing.xl),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const CircularProgressIndicator(),
+                        const SizedBox(height: AppSpacing.md),
+                        Text(
+                          'Preparing preview…',
+                          style: theme.textTheme.titleMedium,
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -239,6 +229,7 @@ class _AdvancedScanScreenState extends ConsumerState<AdvancedScanScreen> {
   void _showSortMenu(BuildContext context) {
     showModalBottomSheet<void>(
       context: context,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg))),
       builder: (context) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -253,6 +244,7 @@ class _AdvancedScanScreenState extends ConsumerState<AdvancedScanScreen> {
                   _sort == entry.$1
                       ? Icons.radio_button_checked
                       : Icons.radio_button_off,
+                  color: _sort == entry.$1 ? Theme.of(context).colorScheme.primary : null,
                 ),
                 title: Text(entry.$2),
                 onTap: () {
@@ -389,44 +381,48 @@ class _AdvancedScanScreenState extends ConsumerState<AdvancedScanScreen> {
     bool ready,
   ) {
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: AppSpacing.pagePadding,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _ShizukuStatusCard(state: state),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.md),
           Text(
             'Scan Android/data and Android/obb using Shizuku.',
             style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: AppSpacing.xs),
           Text(
-            'Read-only: Advanced Scanning never modifies, moves or deletes anything.',
+            'Read-only: Advanced Scanning never modifies or deletes system data.',
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.lg),
           if (scanning)
             _ScanProgressCard(state: state)
           else
-            FilledButton.icon(
-              // Starting requires verified authorization — never inferred from
-              // Shizuku merely being installed or running.
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: theme.colorScheme.primary,
+                foregroundColor: theme.colorScheme.onPrimary,
+                minimumSize: const Size(double.infinity, 48),
+                shape: RoundedRectangleBorder(borderRadius: AppRadius.borderMd),
+              ),
               onPressed: ready
                   ? () => ref.read(advancedScanProvider.notifier).startScan()
                   : null,
-              icon: const Icon(Icons.radar),
+              icon: const HugeIcon(icon: HugeIcons.strokeRoundedCpu, color: Colors.white),
               label: const Text('Start Advanced Scan'),
             ),
           if (state.message != null) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.md),
             _MessageCard(state: state),
           ],
           if (state.rootStatuses.isNotEmpty) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             ...state.rootStatuses.keys.map(
               (index) => _RootStatusRow(
                 index: index,
@@ -447,27 +443,26 @@ class _AdvancedScanScreenState extends ConsumerState<AdvancedScanScreen> {
     int visibleCount,
   ) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.sm),
       child: Column(
         children: [
           TextField(
             controller: _searchController,
             onChanged: (value) => setState(() => _query = value),
             decoration: const InputDecoration(
-              prefixIcon: Icon(Icons.search),
-              hintText: 'Search scanned files',
+              prefixIcon: HugeIcon(icon: HugeIcons.strokeRoundedSearch01, size: 20),
+              hintText: 'Search scanned items',
               border: OutlineInputBorder(),
               isDense: true,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           Row(
             children: [
               Expanded(
                 child: Text(
-                  '$visibleCount files'
-                  '${state.errorCount > 0 ? '  •  ${state.errorCount} could not be accessed' : ''}',
-                  style: theme.textTheme.bodyMedium,
+                  '$visibleCount files found',
+                  style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.bold),
                 ),
               ),
               if (!scanning)
@@ -484,7 +479,6 @@ class _AdvancedScanScreenState extends ConsumerState<AdvancedScanScreen> {
   }
 }
 
-/// Shows the verified Shizuku state and the matching next action.
 class _ShizukuStatusCard extends ConsumerWidget {
   final AdvancedScanState state;
 
@@ -495,65 +489,64 @@ class _ShizukuStatusCard extends ConsumerWidget {
     final theme = Theme.of(context);
     final (icon, color, title, subtitle) = switch (state.shizukuStatus) {
       ShizukuStatus.unknown => (
-        Icons.hourglass_top,
+        HugeIcons.strokeRoundedClock01,
         theme.colorScheme.outline,
         'Checking Shizuku…',
         'One moment please.',
       ),
       ShizukuStatus.unavailable => (
-        Icons.extension_off,
-        theme.colorScheme.error,
+        HugeIcons.strokeRoundedAlertCircle,
+        AppColors.error,
         'Shizuku is not installed',
-        'Advanced Scanning needs the free, open-source Shizuku app. '
-            'It is completely optional — MediaRescue works fully without it.',
+        'Advanced Scanning requires Shizuku service. It is completely optional.',
       ),
       ShizukuStatus.binderNotReceived => (
-        Icons.sync_problem,
-        Colors.orange,
+        HugeIcons.strokeRoundedRefresh,
+        AppColors.warning,
         'Waiting for Shizuku connection',
-        'Shizuku is installed, but its binder has not connected yet. Try again in a moment.',
+        'Shizuku is installed, but binder has not connected yet.',
       ),
       ShizukuStatus.binderDisconnected => (
-        Icons.link_off,
-        Colors.orange,
+        HugeIcons.strokeRoundedLink01,
+        AppColors.warning,
         'Shizuku connection lost',
-        'Shizuku disconnected. Restart its service, then return to MediaRescue.',
+        'Shizuku service disconnected.',
       ),
       ShizukuStatus.notRunning => (
-        Icons.play_disabled,
-        Colors.orange,
+        HugeIcons.strokeRoundedPlay,
+        AppColors.warning,
         'Shizuku is not running',
-        'Open Shizuku and start its service, then come back to MediaRescue.',
+        'Start Shizuku service then return to MediaRescue.',
       ),
       ShizukuStatus.waitingForPermission => (
-        Icons.hourglass_top,
-        Colors.orange,
+        HugeIcons.strokeRoundedClock01,
+        AppColors.warning,
         'Waiting for Shizuku authorization…',
-        'Confirm the authorization dialog shown by Shizuku.',
+        'Confirm authorization dialog in Shizuku.',
       ),
       ShizukuStatus.permissionDenied => (
-        Icons.gpp_bad,
-        theme.colorScheme.error,
-        'Shizuku authorization was denied',
-        'Advanced Scanning stays unavailable until MediaRescue is authorized in Shizuku.',
+        HugeIcons.strokeRoundedCancel01,
+        AppColors.error,
+        'Authorization denied',
+        'MediaRescue needs Shizuku permission to scan data folders.',
       ),
       ShizukuStatus.authorized => (
-        Icons.verified_user,
-        Colors.green,
+        HugeIcons.strokeRoundedCheckmarkCircle02,
+        AppColors.success,
         'Shizuku authorized — ready to scan',
-        'MediaRescue will connect to Shizuku when the scan starts.',
+        'Connected and ready to perform advanced scanning.',
       ),
       ShizukuStatus.serviceConnected => (
-        Icons.verified_user,
-        Colors.green,
+        HugeIcons.strokeRoundedCheckmarkCircle02,
+        AppColors.success,
         'Shizuku connected — ready to scan',
-        'The Advanced Scanning service is connected.',
+        'Advanced Scanning service connected.',
       ),
       ShizukuStatus.error => (
-        Icons.error_outline,
-        theme.colorScheme.error,
-        'Shizuku state could not be checked',
-        'Make sure Shizuku is installed and running, then try again.',
+        HugeIcons.strokeRoundedAlertCircle,
+        AppColors.error,
+        'Shizuku state error',
+        'Ensure Shizuku is running properly.',
       ),
     };
 
@@ -562,70 +555,65 @@ class _ShizukuStatusCard extends ConsumerWidget {
         state.shizukuStatus == ShizukuStatus.waitingForPermission ||
         state.shizukuStatus == ShizukuStatus.permissionDenied;
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon, color: color),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    title,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              HugeIcon(icon: icon, color: color),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Text(
+                  title,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              subtitle,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
               ),
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                OutlinedButton.icon(
-                  onPressed: () => context.push('/shizuku-guide'),
-                  icon: const Icon(Icons.menu_book_outlined, size: 18),
-                  label: const Text('Shizuku Setup Guide'),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            subtitle,
+            style: theme.textTheme.bodySmall,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: [
+              OutlinedButton.icon(
+                onPressed: () => context.push('/shizuku-guide'),
+                icon: const HugeIcon(icon: HugeIcons.strokeRoundedHelpCircle, size: 16),
+                label: const Text('Setup Guide'),
+              ),
+              if (canAuthorize)
+                FilledButton.icon(
+                  onPressed: () => ref
+                      .read(advancedScanProvider.notifier)
+                      .requestAuthorization(),
+                  icon: const HugeIcon(icon: HugeIcons.strokeRoundedKey01, size: 16),
+                  label: const Text('Authorize MediaRescue'),
                 ),
-                if (canAuthorize)
-                  FilledButton.tonalIcon(
-                    onPressed: () => ref
-                        .read(advancedScanProvider.notifier)
-                        .requestAuthorization(),
-                    icon: const Icon(Icons.key, size: 18),
-                    label: const Text('Authorize MediaRescue'),
-                  ),
-                if (state.shizukuStatus == ShizukuStatus.unavailable)
-                  FilledButton.tonalIcon(
-                    onPressed: () async {
-                      final ok = await LinkService.openShizukuPlayStore();
-                      if (!ok && context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Could not open the Play Store.'),
-                          ),
-                        );
-                      }
-                    },
-                    icon: const Icon(Icons.download, size: 18),
-                    label: const Text('Get Shizuku (official)'),
-                  ),
-              ],
-            ),
-          ],
-        ),
+              if (state.shizukuStatus == ShizukuStatus.unavailable)
+                FilledButton.icon(
+                  onPressed: () async {
+                    final ok = await LinkService.openShizukuPlayStore();
+                    if (!ok && context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Could not open Play Store.'),
+                        ),
+                      );
+                    }
+                  },
+                  icon: const HugeIcon(icon: HugeIcons.strokeRoundedDownload01, size: 16),
+                  label: const Text('Get Shizuku'),
+                ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -641,78 +629,33 @@ class _CompletedScanFooter extends StatelessWidget {
       state.shizukuStatus == ShizukuStatus.authorized ||
       state.shizukuStatus == ShizukuStatus.serviceConnected;
 
-  String get _statusTitle => switch (state.shizukuStatus) {
-    ShizukuStatus.authorized => 'Shizuku authorized',
-    ShizukuStatus.serviceConnected => 'Shizuku connected',
-    ShizukuStatus.unavailable => 'Shizuku unavailable',
-    ShizukuStatus.notRunning => 'Shizuku not running',
-    ShizukuStatus.binderNotReceived => 'Shizuku connection pending',
-    ShizukuStatus.binderDisconnected => 'Shizuku disconnected',
-    ShizukuStatus.permissionDenied => 'Shizuku permission denied',
-    ShizukuStatus.waitingForPermission => 'Waiting for authorization',
-    ShizukuStatus.unknown => 'Shizuku status unknown',
-    ShizukuStatus.error => 'Shizuku status unavailable',
-  };
-
-  void _showDetails(BuildContext context) {
-    showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Shizuku connection'),
-        content: Text(
-          'Status: $_statusTitle\n\n'
-          '${_connected ? 'MediaRescue can use Shizuku for Advanced Scanning.' : 'Advanced Scanning is unavailable until Shizuku is connected and authorized.'}',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final color = _connected ? Colors.green : theme.colorScheme.error;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+    final color = _connected ? AppColors.success : AppColors.error;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
+      color: theme.colorScheme.surfaceContainerLow,
       child: Row(
         children: [
+          HugeIcon(
+            icon: _connected ? HugeIcons.strokeRoundedCheckmarkCircle02 : HugeIcons.strokeRoundedAlertCircle,
+            color: color,
+          ),
+          const SizedBox(width: AppSpacing.sm),
           Expanded(
-            child: InkWell(
-              onTap: () => _showDetails(context),
-              borderRadius: BorderRadius.circular(8),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                child: Row(
-                  children: [
-                    Icon(
-                      _connected ? Icons.check_circle : Icons.error,
-                      color: color,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        _statusTitle,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: color,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    const Icon(Icons.chevron_right),
-                  ],
-                ),
+            child: Text(
+              _connected ? 'Shizuku Connected' : 'Shizuku Disconnected',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: color,
+                fontWeight: FontWeight.bold,
               ),
             ),
           ),
-          const SizedBox(width: 8),
-          FilledButton.icon(
+          ElevatedButton.icon(
             onPressed: onRescan,
-            icon: const Icon(Icons.refresh),
+            icon: const HugeIcon(icon: HugeIcons.strokeRoundedRefresh, size: 16),
             label: const Text('Rescan'),
           ),
         ],
@@ -721,7 +664,6 @@ class _CompletedScanFooter extends StatelessWidget {
   }
 }
 
-/// Live progress while starting / scanning, with a Cancel action.
 class _ScanProgressCard extends ConsumerWidget {
   final AdvancedScanState state;
 
@@ -730,60 +672,55 @@ class _ScanProgressCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    state.scanStatus == AdvancedScanStatus.starting
-                        ? 'Starting the scanning service…'
-                        : (state.progressStage.isEmpty
-                              ? 'Scanning…'
-                              : state.progressStage),
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Text(
+                  state.scanStatus == AdvancedScanStatus.starting
+                      ? 'Starting scan service…'
+                      : (state.progressStage.isEmpty
+                            ? 'Scanning…'
+                            : state.progressStage),
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              '${state.filesFound} entries found'
-              '${state.errorCount > 0 ? '  •  ${state.errorCount} could not be accessed' : ''}',
-              style: theme.textTheme.bodySmall,
-            ),
-            const SizedBox(height: 8),
-            const LinearProgressIndicator(minHeight: 3),
-            const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: () =>
-                    ref.read(advancedScanProvider.notifier).stopScan(),
-                icon: const Icon(Icons.stop_circle_outlined),
-                label: const Text('Cancel Scan'),
               ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            '${state.filesFound} items indexed',
+            style: theme.textTheme.bodySmall,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          const LinearProgressIndicator(minHeight: 3),
+          const SizedBox(height: AppSpacing.sm),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: () =>
+                  ref.read(advancedScanProvider.notifier).stopScan(),
+              icon: const HugeIcon(icon: HugeIcons.strokeRoundedCancel01, size: 16, color: AppColors.error),
+              label: const Text('Cancel Scan', style: TextStyle(color: AppColors.error)),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
 
-/// User-facing outcome message (failures, cancellations, summaries).
 class _MessageCard extends StatelessWidget {
   final AdvancedScanState state;
 
@@ -791,35 +728,28 @@ class _MessageCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final isError = state.scanStatus == AdvancedScanStatus.failed;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          children: [
-            Icon(
-              isError ? Icons.error_outline : Icons.info_outline,
-              size: 20,
-              color: isError
-                  ? theme.colorScheme.error
-                  : theme.colorScheme.primary,
+    return AppCard(
+      borderColor: isError ? AppColors.error : AppColors.info,
+      child: Row(
+        children: [
+          HugeIcon(
+            icon: isError ? HugeIcons.strokeRoundedAlertCircle : HugeIcons.strokeRoundedInformationCircle,
+            color: isError ? AppColors.error : AppColors.info,
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Text(
+              state.message ?? '',
+              style: Theme.of(context).textTheme.bodySmall,
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                state.message ?? '',
-                style: theme.textTheme.bodySmall,
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
 
-/// Per-root status row (Android/data / Android/obb).
 class _RootStatusRow extends StatelessWidget {
   final int index;
   final String status;
@@ -831,29 +761,28 @@ class _RootStatusRow extends StatelessWidget {
     final theme = Theme.of(context);
     final label = AdvancedScanController.rootLabels[index] ?? 'Root $index';
     return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
+      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
       child: Row(
         children: [
-          Icon(
-            switch (status) {
-              'ok' => Icons.check_circle,
-              'missing' => Icons.help_outline,
-              _ => Icons.block,
+          HugeIcon(
+            icon: switch (status) {
+              'ok' => HugeIcons.strokeRoundedCheckmarkCircle02,
+              'missing' => HugeIcons.strokeRoundedHelpCircle,
+              _ => HugeIcons.strokeRoundedCancel01,
             },
             size: 16,
             color: switch (status) {
-              'ok' => Colors.green,
-              'missing' => Colors.orange,
-              _ => theme.colorScheme.error,
+              'ok' => AppColors.success,
+              'missing' => AppColors.warning,
+              _ => AppColors.error,
             },
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(switch (status) {
               'ok' => '$label — accessible',
-              'missing' => '$label — does not exist',
-              'inaccessible' => '$label — could not be accessed',
-              _ => '$label — could not be checked',
+              'missing' => '$label — missing',
+              _ => '$label — inaccessible',
             }, style: theme.textTheme.bodySmall),
           ),
         ],
@@ -877,37 +806,19 @@ class _AdvancedResultTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
     final relative = item.path.replaceFirst('/storage/emulated/0/', '');
     return ListTile(
-      dense: true,
-      leading: ClipRRect(
-        borderRadius: BorderRadius.circular(6),
-        child: _AdvancedThumbnail(item: item, width: 46, height: 46),
-      ),
-      title: Text(item.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+      leading: ThumbnailImage(item: item, width: 44, height: 44, borderRadius: AppRadius.sm),
+      title: Text(item.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600)),
       subtitle: Text(
         relative,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: theme.textTheme.bodySmall?.copyWith(
-          color: theme.colorScheme.onSurfaceVariant,
-        ),
+        style: AppTypography.codeMono,
       ),
-      onTap: () {
-        if (ref.read(selectionProvider).isNotEmpty) {
-          ref.read(selectionProvider.notifier).toggle(item);
-        } else {
-          onOpen();
-        }
-      },
-      onLongPress: () => ref.read(selectionProvider.notifier).toggle(item),
-      tileColor: selected
-          ? Theme.of(context).colorScheme.secondaryContainer
-          : null,
+      onTap: onOpen,
       trailing: IconButton(
-        icon: const Icon(Icons.more_vert),
-        tooltip: 'File actions',
+        icon: const HugeIcon(icon: HugeIcons.strokeRoundedMoreVertical, size: 18),
         onPressed: () => showFileActionsSheet(
           context,
           ref,
@@ -915,7 +826,7 @@ class _AdvancedResultTile extends ConsumerWidget {
           onOpen: onOpen,
           additionalActions: [
             ListTile(
-              leading: const Icon(Icons.save_alt),
+              leading: const HugeIcon(icon: HugeIcons.strokeRoundedDownload01, color: AppColors.primary),
               title: const Text('Copy to Rescue'),
               onTap: () {
                 Navigator.of(context).pop();
@@ -946,153 +857,28 @@ class _AdvancedGridTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     return InkWell(
-      onTap: () {
-        if (ref.read(selectionProvider).isNotEmpty) {
-          ref.read(selectionProvider.notifier).toggle(item);
-        } else {
-          onTap();
-        }
-      },
-      overlayColor: WidgetStatePropertyAll(
-        selected ? Theme.of(context).colorScheme.secondaryContainer : null,
-      ),
-      onLongPress: () => showFileActionsSheet(
-        context,
-        ref,
-        item,
-        onOpen: onTap,
-        additionalActions: [
-          ListTile(
-            leading: const Icon(Icons.check_box_outlined),
-            title: const Text('Select file'),
-            onTap: () {
-              Navigator.of(context).pop();
-              ref.read(selectionProvider.notifier).toggle(item);
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.save_alt),
-            title: const Text('Copy to Rescue'),
-            onTap: () {
-              Navigator.of(context).pop();
-              onRescue();
-            },
-          ),
-        ],
-      ),
-      borderRadius: BorderRadius.circular(10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Stack(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: SizedBox.expand(
-                    child: ColoredBox(
-                      color: theme.colorScheme.surfaceContainerHighest,
-                      child: _AdvancedThumbnail(
-                        item: item,
-                        width: 120,
-                        height: 120,
-                      ),
-                    ),
-                  ),
-                ),
-                if (selected)
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.primary,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.check,
-                        color: theme.colorScheme.onPrimary,
-                        size: 24,
-                      ),
-                    ),
-                  ),
-              ],
+      onTap: onTap,
+      borderRadius: AppRadius.borderMd,
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: AppRadius.borderMd,
+          border: Border.all(color: theme.colorScheme.outline, width: 1),
+          color: theme.cardTheme.color,
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: ThumbnailImage(item: item, width: double.infinity, height: double.infinity, borderRadius: 0),
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(item.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-          Text(_formatSize(item.size), style: theme.textTheme.bodySmall),
-        ],
+            Padding(
+              padding: const EdgeInsets.all(AppSpacing.xs + 2),
+              child: Text(item.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
       ),
-    );
-  }
-}
-
-class _AdvancedThumbnail extends StatefulWidget {
-  final FileItem item;
-  final double width;
-  final double height;
-
-  const _AdvancedThumbnail({
-    required this.item,
-    required this.width,
-    required this.height,
-  });
-
-  @override
-  State<_AdvancedThumbnail> createState() => _AdvancedThumbnailState();
-}
-
-class _AdvancedThumbnailState extends State<_AdvancedThumbnail> {
-  String? _path;
-
-  @override
-  void initState() {
-    super.initState();
-    _prepare();
-  }
-
-  Future<void> _prepare() async {
-    if (!widget.item.isImage && !widget.item.isVideo) return;
-    final path =
-        '${AdvancedScanController.previewCachePath}/${widget.item.name}';
-    final copied =
-        widget.item.path.startsWith(
-          '${AdvancedScanController.previewCachePath}/',
-        ) ||
-        await AdvancedScanService.instance.copyAdvancedFile(
-          widget.item.path,
-          path,
-        );
-    if (copied && mounted) {
-      setState(() => _path = path);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_path == null) {
-      return Icon(
-        widget.item.isVideo ? Icons.video_file : Icons.image,
-        size: widget.width,
-        color: Colors.grey,
-      );
-    }
-    final cached = widget.item.copyWith(path: _path);
-    if (widget.item.isImage) {
-      return Image.file(
-        File(_path!),
-        width: widget.width,
-        height: widget.height,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) =>
-            Icon(Icons.image, size: widget.width),
-      );
-    }
-    return ThumbnailImage(
-      item: cached,
-      width: widget.width,
-      height: widget.height,
     );
   }
 }
@@ -1109,26 +895,29 @@ class _AdvancedSelectionBar extends ConsumerWidget {
     final selected = files
         .where((file) => selectedPaths.contains(file.path))
         .toList();
-    return BottomAppBar(
+    final theme = Theme.of(context);
+
+    return Container(
+      margin: const EdgeInsets.all(AppSpacing.lg),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: AppRadius.borderPill,
+        border: Border.all(color: theme.colorScheme.outline, width: 1),
+      ),
       child: Row(
         children: [
-          Expanded(child: Text('${selectedPaths.length} selected')),
-          IconButton(
-            tooltip: 'Select all',
-            icon: const Icon(Icons.select_all),
-            onPressed: () =>
-                ref.read(selectionProvider.notifier).selectAll(files),
-          ),
-          FilledButton.icon(
+          Expanded(child: Text('${selectedPaths.length} selected', style: const TextStyle(fontWeight: FontWeight.bold))),
+          ElevatedButton.icon(
             onPressed: selected.isEmpty
                 ? null
                 : () => _copySelected(context, ref, selected),
-            icon: const Icon(Icons.save_alt),
+            icon: const HugeIcon(icon: HugeIcons.strokeRoundedDownload01, color: Colors.white, size: 16),
             label: const Text('Copy to Rescue'),
           ),
           IconButton(
             onPressed: onClear,
-            icon: const Icon(Icons.close),
+            icon: HugeIcon(icon: HugeIcons.strokeRoundedCancel01, color: theme.colorScheme.onSurface),
             tooltip: 'Clear selection',
           ),
         ],

@@ -46,6 +46,7 @@ dependencies:
   url_launcher: ^6.3.2
   package_info_plus: ^8.1.1
   flutter_local_notifications: ^20.1.0
+  hugeicons: ^1.1.7
 
 dev_dependencies:
   flutter_test:
@@ -75,6 +76,7 @@ flutter:
   #   - images/a_dot_ham.jpeg
   assets:
     - assets/images/icon.png
+    - assets/audio/notification.mp3
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

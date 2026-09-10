@@ -1,7 +1,11 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:hugeicons/hugeicons.dart';
 import 'package:video_player/video_player.dart';
+import '../../app/theme/app_colors.dart';
+import '../../app/theme/app_spacing.dart';
 import '../../models/file_item.dart';
+import '../../widgets/app_card.dart';
 
 class AudioPlayerScreen extends StatefulWidget {
   final FileItem item;
@@ -38,7 +42,6 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
   }
 
   void _initController(FileItem item) {
-    // Always dispose the old controller before creating a new one
     final oldController = _controller;
     _controller = null;
     _initialized = false;
@@ -53,7 +56,6 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
     _controller = newController;
     newController.initialize().then((_) {
       if (!mounted || _controller != newController) {
-        // The controller was replaced before initialization completed
         newController.dispose();
         return;
       }
@@ -126,38 +128,39 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
       body: Center(
         child: _initialized && controller != null
             ? Padding(
-                padding: const EdgeInsets.all(24),
+                padding: AppSpacing.pagePadding,
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Container(
-                      width: 120,
-                      height: 120,
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.primaryContainer,
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                      child: Icon(
-                        Icons.audiotrack,
-                        size: 64,
-                        color: theme.colorScheme.primary,
+                    AppCard(
+                      width: 200,
+                      height: 200,
+                      color: AppColors.audio.withOpacity(0.15),
+                      borderColor: AppColors.audio.withOpacity(0.3),
+                      child: Center(
+                        child: HugeIcon(
+                          icon: HugeIcons.strokeRoundedMusicNote01,
+                          size: 96,
+                          color: AppColors.audio,
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: AppSpacing.xl),
                     Text(
                       currentItem.name,
-                      style: theme.textTheme.titleLarge,
+                      style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                       textAlign: TextAlign.center,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: AppSpacing.xs),
                     Text(
-                      currentItem.mimeType ?? 'Audio',
-                      style: theme.textTheme.bodyMedium,
+                      currentItem.mimeType ?? 'Audio Track',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
                     ),
-                    const SizedBox(height: 32),
-                    // Progress
+                    const SizedBox(height: AppSpacing.xxl),
                     ValueListenableBuilder(
                       valueListenable: controller,
                       builder: (context, value, _) {
@@ -178,14 +181,13 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                               },
                             ),
                             Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 16),
+                              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                               child: Row(
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text(_formatDuration(position)),
-                                  Text(_formatDuration(duration)),
+                                  Text(_formatDuration(position), style: theme.textTheme.bodySmall),
+                                  Text(_formatDuration(duration), style: theme.textTheme.bodySmall),
                                 ],
                               ),
                             ),
@@ -193,30 +195,35 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                         );
                       },
                     ),
-                    const SizedBox(height: 16),
-                    // Controls
+                    const SizedBox(height: AppSpacing.xl),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         IconButton(
-                          iconSize: 48,
-                          icon: const Icon(Icons.skip_previous),
+                          iconSize: 40,
+                          icon: const HugeIcon(icon: HugeIcons.strokeRoundedPrevious, size: 36),
                           onPressed: _playPrevious,
                         ),
-                        const SizedBox(width: 16),
+                        const SizedBox(width: AppSpacing.lg),
                         IconButton.filled(
-                          iconSize: 64,
-                          icon: Icon(
-                            controller.value.isPlaying
-                                ? Icons.pause_circle_filled
-                                : Icons.play_circle_filled,
+                          iconSize: 56,
+                          style: IconButton.styleFrom(
+                            backgroundColor: theme.colorScheme.primary,
+                            foregroundColor: theme.colorScheme.onPrimary,
+                          ),
+                          icon: HugeIcon(
+                            icon: controller.value.isPlaying
+                                ? HugeIcons.strokeRoundedPause
+                                : HugeIcons.strokeRoundedPlay,
+                            color: Colors.white,
+                            size: 32,
                           ),
                           onPressed: _togglePlay,
                         ),
-                        const SizedBox(width: 16),
+                        const SizedBox(width: AppSpacing.lg),
                         IconButton(
-                          iconSize: 48,
-                          icon: const Icon(Icons.skip_next),
+                          iconSize: 40,
+                          icon: const HugeIcon(icon: HugeIcons.strokeRoundedNext, size: 36),
                           onPressed: _playNext,
                         ),
                       ],

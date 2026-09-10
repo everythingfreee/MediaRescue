@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hugeicons/hugeicons.dart';
+import '../../app/theme/app_radius.dart';
+import '../../app/theme/app_spacing.dart';
+import '../../app/theme/app_typography.dart';
+import '../../models/file_item.dart';
 import '../../providers/gallery_provider.dart';
 import '../../providers/storage_provider.dart';
-import '../../models/file_item.dart';
 
-/// Screen for selecting a folder to scan in the Gallery.
 class FolderPickerScreen extends ConsumerStatefulWidget {
   const FolderPickerScreen({super.key});
 
@@ -21,7 +24,7 @@ class _FolderPickerScreenState extends ConsumerState<FolderPickerScreen> {
   @override
   void initState() {
     super.initState();
-    _currentPath = null; // null = root
+    _currentPath = null;
     _loadDirectory();
   }
 
@@ -63,28 +66,42 @@ class _FolderPickerScreenState extends ConsumerState<FolderPickerScreen> {
         title: const Text('Select Folder'),
         actions: [
           if (_currentPath != null)
-            TextButton(
-              onPressed: _selectFolder,
-              child: const Text('Select'),
+            Padding(
+              padding: const EdgeInsets.only(right: AppSpacing.sm),
+              child: FilledButton.icon(
+                onPressed: _selectFolder,
+                icon: const HugeIcon(
+                  icon: HugeIcons.strokeRoundedCheckmarkBadge01,
+                  color: Colors.white,
+                  size: 18,
+                ),
+                label: const Text('Select'),
+              ),
             ),
         ],
       ),
       body: Column(
         children: [
-          // Current path breadcrumb
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            color: theme.colorScheme.surfaceContainerHighest,
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg,
+              vertical: AppSpacing.md,
+            ),
+            color: theme.colorScheme.surfaceContainerLow,
             child: Row(
               children: [
-                const Icon(Icons.folder, size: 18),
-                const SizedBox(width: 8),
+                HugeIcon(
+                  icon: HugeIcons.strokeRoundedFolder01,
+                  color: theme.colorScheme.primary,
+                  size: 20,
+                ),
+                const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: Text(
-                    _currentPath ?? 'Internal Storage',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      fontFamily: 'monospace',
+                    _currentPath ?? '/storage/emulated/0',
+                    style: AppTypography.codeMono.copyWith(
+                      color: theme.colorScheme.primary,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -97,10 +114,10 @@ class _FolderPickerScreenState extends ConsumerState<FolderPickerScreen> {
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _error != null
-                    ? Center(child: Text(_error!))
-                    : _items.isEmpty
-                        ? const Center(child: Text('This folder is empty'))
-                        : _buildFolderList(),
+                ? Center(child: Text(_error!))
+                : _items.isEmpty
+                ? const Center(child: Text('This folder is empty'))
+                : _buildFolderList(),
           ),
         ],
       ),
@@ -108,19 +125,34 @@ class _FolderPickerScreenState extends ConsumerState<FolderPickerScreen> {
   }
 
   Widget _buildFolderList() {
-    // Only show folders for selection
     final folders = _items.where((f) => f.isDirectory).toList()
       ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 
-    return ListView.builder(
+    return ListView.separated(
+      padding: const EdgeInsets.all(AppSpacing.md),
       itemCount: folders.length,
+      separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.xs),
       itemBuilder: (context, index) {
         final folder = folders[index];
         return ListTile(
-          leading: const Icon(Icons.folder, color: Colors.amber),
-          title: Text(folder.name),
-          subtitle: Text(folder.path),
-          trailing: const Icon(Icons.chevron_right),
+          shape: RoundedRectangleBorder(borderRadius: AppRadius.borderMd),
+          leading: const HugeIcon(
+            icon: HugeIcons.strokeRoundedFolder01,
+            color: Colors.amber,
+          ),
+          title: Text(
+            folder.name,
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+          subtitle: Text(
+            folder.path,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          trailing: const HugeIcon(
+            icon: HugeIcons.strokeRoundedArrowRight01,
+            size: 18,
+          ),
           onTap: () => _navigateInto(folder),
         );
       },

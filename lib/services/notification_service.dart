@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import 'link_service.dart';
+import 'storage_service.dart';
 
 /// Client-side Firebase Cloud Messaging integration used to announce new
 /// MediaRescue releases.
@@ -25,8 +26,12 @@ class NotificationService {
   static final FirebaseMessaging _fcm = FirebaseMessaging.instance;
   static final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
+  static final StorageService _storage = MethodChannelStorageService();
 
   static const int _updateNotificationId = 1404;
+
+  /// SharedPreferences key for the user's notification preference.
+  static const String _prefKeyNotificationsEnabled = 'notifications_enabled';
 
   static bool _initialized = false;
   static bool _subscribed = false;
@@ -34,6 +39,10 @@ class NotificationService {
   /// True when the app was opened (or focused) by tapping an update
   /// notification. Used to avoid showing the update dialog at the same time.
   static bool launchedFromUpdateNotification = false;
+
+  /// Channel ID for update notifications — referenced both when creating the
+  /// channel (with custom sound) and when showing individual notifications.
+  static const String _channelId = 'mediarescue_updates';
 
   /// Must be called once, after `Firebase.initializeApp`. Never throws.
   static Future<void> initialize() async {
@@ -56,6 +65,31 @@ class NotificationService {
           LinkService.openPlayStore();
         },
       );
+
+      // On Android 8.0+ the notification sound is controlled by the channel,
+      // not by individual notifications. We must create the channel with the
+      // custom sound explicitly. Deleting any pre-existing channel first
+      // ensures the new sound takes effect even after an app update.
+      final androidPlugin = _localNotifications
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>();
+      if (androidPlugin != null) {
+        try {
+          await androidPlugin.deleteNotificationChannel(channelId: _channelId);
+        } catch (_) {
+          // Channel may not exist yet — ignore.
+        }
+        await androidPlugin.createNotificationChannel(
+          const AndroidNotificationChannel(
+            _channelId,
+            'Update notifications',
+            description: 'Announcements about new MediaRescue releases',
+            importance: Importance.high,
+            sound: RawResourceAndroidNotificationSound('notification'),
+            playSound: true,
+          ),
+        );
+      }
     } catch (e) {
       debugPrint('MediaRescue: local notifications unavailable ($e)');
     }
@@ -77,7 +111,20 @@ class NotificationService {
       // Foreground messages are not shown by the system on Android.
       FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
 
-      await _subscribeWhenPermitted();
+      // Check the user's persisted notification preference.
+      // - null: key not set (first launch) → default to ON, auto-subscribe
+      // - true: user explicitly enabled → auto-subscribe
+      // - false: user explicitly disabled → unsubscribe to guarantee no
+      //   notifications are received, even if a prior version left a stale
+      //   FCM topic subscription active.
+      final userPref = await _storage.getAppPrefBool(_prefKeyNotificationsEnabled);
+      if (userPref != false) {
+        await _subscribeWhenPermitted();
+      } else {
+        // User has explicitly disabled notifications — ensure unsubscribed.
+        await _fcm.unsubscribeFromTopic(updateTopic);
+        _subscribed = false;
+      }
     } catch (e) {
       debugPrint('MediaRescue: Firebase Cloud Messaging unavailable ($e)');
     }
@@ -124,10 +171,20 @@ class NotificationService {
     }
   }
 
+  /// Whether this installation is currently subscribed to the update topic.
+  /// This is the authoritative source for the toggle state in settings.
+  static bool get isSubscribed => _subscribed;
+
   /// Subscribes this installation to [updateTopic] if permission allows it.
-  static Future<void> subscribe() => _subscribeWhenPermitted();
+  /// Persists the user's preference so it survives app restarts.
+  static Future<void> subscribe() async {
+    await _subscribeWhenPermitted();
+    // Persist the user's choice to re-enable notifications
+    await _storage.setAppPrefBool(_prefKeyNotificationsEnabled, true);
+  }
 
   /// Unsubscribes this installation from the update topic.
+  /// Persists the user's preference so it survives app restarts.
   static Future<void> unsubscribe() async {
     if (!_subscribed) return;
     try {
@@ -136,6 +193,8 @@ class NotificationService {
     } catch (e) {
       debugPrint('MediaRescue: unsubscribe failed ($e)');
     }
+    // Persist the user's choice to disable notifications
+    await _storage.setAppPrefBool(_prefKeyNotificationsEnabled, false);
   }
 
   static Future<void> _subscribeWhenPermitted() async {
@@ -171,12 +230,14 @@ class NotificationService {
             'A new version of MediaRescue is available on Google Play.',
         notificationDetails: const NotificationDetails(
           android: AndroidNotificationDetails(
-            'mediarescue_updates',
+            _channelId,
             'Update notifications',
             channelDescription:
                 'Announcements about new MediaRescue releases',
             importance: Importance.high,
             priority: Priority.high,
+            // Sound is set on the channel (created in initialize()) — do not
+            // set it here or it will be ignored / cause a duplicate channel.
           ),
         ),
       );

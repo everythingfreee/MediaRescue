@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:hugeicons/hugeicons.dart';
 
+import '../../app/theme/app_colors.dart';
+import '../../app/theme/app_spacing.dart';
 import '../../services/link_service.dart';
+import '../../widgets/app_button.dart';
+import '../../widgets/app_card.dart';
 
-/// Privacy Policy page: a short, accurate in-app summary plus a link to the
-/// full canonical policy hosted by the project.
-/// Reachable via Settings → About → Privacy Policy.
 class PrivacyPolicyScreen extends StatelessWidget {
   const PrivacyPolicyScreen({super.key});
 
@@ -15,112 +17,76 @@ class PrivacyPolicyScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Privacy Policy')),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
+        padding: AppSpacing.pagePadding,
         children: [
           Text(
-            'Privacy Policy',
-            style: theme.textTheme.headlineSmall,
+            'MediaRescue Privacy Summary',
+            style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.xs),
           Text(
-            'MediaRescue is an offline-first file manager. This summary '
-            'describes how the application handles your data. The full, '
-            'canonical policy is linked below.',
-            style: theme.textTheme.bodyLarge,
+            'MediaRescue is an offline-first file management application. All scanning and media processing operations execute locally on your device.',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
-          const SizedBox(height: 24),
-          const _PolicyItem(
-            icon: Icons.folder_outlined,
+          const SizedBox(height: AppSpacing.lg),
+          const _PolicyCard(
+            icon: HugeIcons.strokeRoundedFolder01,
             title: 'Storage & file access',
             body:
-                'MediaRescue asks for full access to your device storage so it '
-                'can scan folders and manage your media files. Granting (or '
-                'revoking) this access is controlled entirely by you in the '
-                'Android system settings.',
+                'MediaRescue asks for full access to your device storage so it can index folders and manage media. Access permissions are controlled entirely by you via Android system settings.',
           ),
-          const _PolicyItem(
-            icon: Icons.manage_search,
+          const SizedBox(height: AppSpacing.md),
+          const _PolicyCard(
+            icon: HugeIcons.strokeRoundedSearch01,
             title: 'Local scanning & processing',
             body:
-                'Storage scanning, thumbnails, previews, large-file detection '
-                'and file operations all run locally on your device. MediaRescue '
-                'does not upload your media files anywhere, and it does not share '
-                'or sell your personal data.',
+                'All file indexing, thumbnail generation, large-file detection, and rescue file copies run offline on device. MediaRescue does not upload or sell your personal files.',
           ),
-          const _PolicyItem(
-            icon: Icons.notifications_active_outlined,
+          const SizedBox(height: AppSpacing.md),
+          const _PolicyCard(
+            icon: HugeIcons.strokeRoundedNotification01,
             title: 'Notifications & Firebase Cloud Messaging',
             body:
-                'With your permission, MediaRescue uses Firebase Cloud '
-                'Messaging to announce new releases. For this to work the app '
-                'communicates with Google\'s Firebase servers to receive update '
-                'notifications — no media or personal files are involved. You '
-                'can enable or disable these notifications at any time from '
-                'Settings, or in the Android notification settings.',
+                'With your explicit permission, MediaRescue uses Firebase Cloud Messaging to announce update releases. No personal files are ever transmitted.',
           ),
-          const _PolicyItem(
-            icon: Icons.storefront,
-            title: 'Google Play',
+          const SizedBox(height: AppSpacing.md),
+          const _PolicyCard(
+            icon: HugeIcons.strokeRoundedStore01,
+            title: 'Google Play In-App Updates',
             body:
-                'MediaRescue checks Google Play for newer versions and can '
-                'install updates through Google Play\'s official In-App Updates. '
-                'The store handles the download and installation. Update checks '
-                'are optional and never required for the app to work.',
+                'MediaRescue checks Google Play for updates via official APIs. Google Play manages download and installation.',
           ),
-          const _PolicyItem(
-            icon: Icons.handshake_outlined,
-            title: 'Third-party services & data sharing',
-            body:
-                'The only third-party services used are Google\'s Firebase and '
-                'Google Play, strictly for notifications and updates. MediaRescue '
-                'operates no backend, has no accounts, and stores none of your '
-                'files on any server.',
-          ),
-          const _PolicyItem(
-            icon: Icons.tune,
-            title: 'Your controls',
-            body:
-                'You control storage access, notification permission and '
-                'update notifications directly in the app and in the Android '
-                'settings. The app continues to work normally regardless of '
-                'which of these you disable.',
-          ),
-          const SizedBox(height: 24),
-          FilledButton.icon(
+          const SizedBox(height: AppSpacing.xl),
+          AppButton(
+            label: 'Read Full Privacy Policy Online',
+            icon: const HugeIcon(icon: HugeIcons.strokeRoundedLinkSquare02, color: Colors.white),
             onPressed: () async {
               final ok = await LinkService.openUrl(LinkService.privacyPolicyUrl);
               if (!ok && context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text(
-                      'No application is available to open this link.',
-                    ),
+                    content: Text('No application is available to open this link.'),
                   ),
                 );
               }
             },
-            icon: const Icon(Icons.open_in_new),
-            label: const Text('Read Full Privacy Policy'),
+            isFullWidth: true,
           ),
-          const SizedBox(height: 8),
-          Text(
-            LinkService.privacyPolicyUrl,
-            style: theme.textTheme.bodySmall
-                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-            textAlign: TextAlign.center,
-          ),
+          const SizedBox(height: AppSpacing.xl),
         ],
       ),
     );
   }
 }
 
-class _PolicyItem extends StatelessWidget {
-  final IconData icon;
+class _PolicyCard extends StatelessWidget {
+  final List<List<dynamic>> icon;
   final String title;
   final String body;
 
-  const _PolicyItem({
+  const _PolicyCard({
     required this.icon,
     required this.title,
     required this.body,
@@ -129,19 +95,18 @@ class _PolicyItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
+    return AppCard(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 22, color: theme.colorScheme.primary),
-          const SizedBox(width: 12),
+          HugeIcon(icon: icon, color: AppColors.primary, size: 22),
+          const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: theme.textTheme.titleMedium),
-                const SizedBox(height: 4),
+                Text(title, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                const SizedBox(height: AppSpacing.xs),
                 Text(body, style: theme.textTheme.bodyMedium),
               ],
             ),

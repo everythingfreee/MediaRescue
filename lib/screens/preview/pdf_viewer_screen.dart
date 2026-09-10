@@ -1,6 +1,10 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_pdfview/flutter_pdfview.dart';
+import 'package:hugeicons/hugeicons.dart';
+import '../../app/theme/app_colors.dart';
+import '../../app/theme/app_radius.dart';
+import '../../app/theme/app_spacing.dart';
 import '../../models/file_item.dart';
 
 class PdfViewerScreen extends StatefulWidget {
@@ -25,7 +29,6 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
     _preparePdf();
   }
 
-  /// Copies the PDF to app cache so flutter_pdfview can access it reliably.
   Future<void> _preparePdf() async {
     try {
       final source = File(widget.item.path);
@@ -37,7 +40,6 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
         return;
       }
 
-      // Copy to cache directory
       final cacheDir = Directory(
         '${Directory.systemTemp.path}/mediarescue_pdfs',
       );
@@ -66,6 +68,8 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.item.name,
@@ -74,8 +78,21 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
           if (_totalPages > 0)
             Center(
               child: Padding(
-                padding: const EdgeInsets.only(right: 16),
-                child: Text('${_currentPage + 1} / $_totalPages'),
+                padding: const EdgeInsets.only(right: AppSpacing.lg),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary.withOpacity(0.12),
+                    borderRadius: AppRadius.borderPill,
+                  ),
+                  child: Text(
+                    'Page ${_currentPage + 1} of $_totalPages',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
               ),
             ),
         ],
@@ -85,16 +102,15 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
           : _error != null
               ? Center(
                   child: Padding(
-                    padding: const EdgeInsets.all(24),
+                    padding: AppSpacing.pagePadding,
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.error_outline,
-                            size: 64, color: Colors.red),
-                        const SizedBox(height: 16),
+                        const HugeIcon(icon: HugeIcons.strokeRoundedAlertCircle, size: 64, color: AppColors.error),
+                        const SizedBox(height: AppSpacing.md),
                         Text(_error!, textAlign: TextAlign.center),
-                        const SizedBox(height: 16),
-                        FilledButton(
+                        const SizedBox(height: AppSpacing.md),
+                        ElevatedButton(
                           onPressed: () {
                             setState(() {
                               _isLoading = true;

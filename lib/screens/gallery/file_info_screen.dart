@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hugeicons/hugeicons.dart';
+import '../../app/theme/app_colors.dart';
+import '../../app/theme/app_radius.dart';
+import '../../app/theme/app_spacing.dart';
 import '../../models/file_item.dart';
 import '../../providers/gallery_provider.dart';
 import '../../providers/storage_provider.dart';
+import '../../widgets/app_card.dart';
+import '../../widgets/thumbnail_image.dart';
 
-/// Shows detailed information about a file and allows rename/delete.
 class FileInfoScreen extends ConsumerStatefulWidget {
   final FileItem item;
 
@@ -88,7 +93,6 @@ class _FileInfoScreenState extends ConsumerState<FileInfoScreen> {
           content: Text(success ? 'File renamed.' : 'Rename failed.'),
         ));
         if (success) {
-          // Refresh the gallery to reflect the rename
           ref.read(galleryProvider.notifier).refresh();
           Navigator.of(context).pop();
         }
@@ -112,7 +116,7 @@ class _FileInfoScreenState extends ConsumerState<FileInfoScreen> {
           ),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
             child: const Text('Delete'),
           ),
         ],
@@ -141,78 +145,58 @@ class _FileInfoScreenState extends ConsumerState<FileInfoScreen> {
         title: const Text('File Info'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.drive_file_rename_outline),
+            icon: const HugeIcon(icon: HugeIcons.strokeRoundedEdit02, color: AppColors.primary),
             tooltip: 'Rename',
             onPressed: _renameFile,
           ),
           IconButton(
-            icon: const Icon(Icons.delete_outline),
+            icon: const HugeIcon(icon: HugeIcons.strokeRoundedDelete02, color: AppColors.error),
             tooltip: 'Delete',
-            color: Colors.red,
             onPressed: _deleteFile,
           ),
+          const SizedBox(width: AppSpacing.xs),
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: AppSpacing.pagePadding,
         children: [
-          // File icon / preview
           Center(
-            child: Container(
+            child: ThumbnailImage(
+              item: _item,
               width: 120,
               height: 120,
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: _item.isImage || _item.isVideo
-                  ? Image.network(
-                      'file://${_item.path}',
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) => Icon(
-                        _item.isVideo ? Icons.video_file : Icons.image,
-                        size: 48,
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    )
-                  : Icon(
-                      _getFileIcon(),
-                      size: 48,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
+              borderRadius: AppRadius.lg,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.lg),
           Center(
             child: Text(
               _item.name,
-              style: theme.textTheme.titleLarge
-                  ?.copyWith(fontWeight: FontWeight.bold),
+              style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),
           ),
-          const SizedBox(height: 24),
-          _InfoRow(label: 'Type', value: _getFileTypeLabel(_item)),
-          _InfoRow(label: 'Size', value: _formatSize(_item.size)),
-          _InfoRow(label: 'Extension', value: _item.extension.isEmpty ? '—' : '.${_item.extension}'),
-          _InfoRow(label: 'MIME Type', value: _item.mimeType ?? 'Unknown'),
-          _InfoRow(label: 'Modified', value: _formatDate(_item.modifiedDate)),
-          _InfoRow(label: 'Path', value: _item.path),
+          const SizedBox(height: AppSpacing.xl),
+          AppCard(
+            child: Column(
+              children: [
+                _InfoRow(label: 'Type', value: _getFileTypeLabel(_item)),
+                const Divider(),
+                _InfoRow(label: 'Size', value: _formatSize(_item.size)),
+                const Divider(),
+                _InfoRow(label: 'Extension', value: _item.extension.isEmpty ? '—' : '.${_item.extension}'),
+                const Divider(),
+                _InfoRow(label: 'MIME Type', value: _item.mimeType ?? 'Unknown'),
+                const Divider(),
+                _InfoRow(label: 'Modified', value: _formatDate(_item.modifiedDate)),
+                const Divider(),
+                _InfoRow(label: 'Path', value: _item.path),
+              ],
+            ),
+          ),
         ],
       ),
     );
-  }
-
-  IconData _getFileIcon() {
-    if (_item.isImage) return Icons.image;
-    if (_item.isVideo) return Icons.video_file;
-    if (_item.isAudio) return Icons.audiotrack;
-    if (_item.isPdf) return Icons.picture_as_pdf;
-    if (_item.isDocument) return Icons.description;
-    if (_item.isText) return Icons.article;
-    if (_item.isArchive) return Icons.folder_zip;
-    return Icons.insert_drive_file;
   }
 }
 
@@ -226,7 +210,7 @@ class _InfoRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -234,16 +218,16 @@ class _InfoRow extends StatelessWidget {
             width: 100,
             child: Text(
               label,
-              style: theme.textTheme.bodyMedium?.copyWith(
+              style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
                 fontWeight: FontWeight.w600,
               ),
             ),
           ),
           Expanded(
-            child: Text(
+            child: SelectableText(
               value,
-              style: theme.textTheme.bodyMedium,
+              style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
             ),
           ),
         ],

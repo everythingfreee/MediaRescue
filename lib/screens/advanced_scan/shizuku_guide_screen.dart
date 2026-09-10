@@ -1,64 +1,46 @@
 import 'package:flutter/material.dart';
-
+import 'package:hugeicons/hugeicons.dart';
+import '../../app/theme/app_colors.dart';
+import '../../app/theme/app_spacing.dart';
 import '../../services/link_service.dart';
+import '../../widgets/app_card.dart';
 
-/// In-app, text-based Shizuku setup guide (no video yet — the architecture
-/// reserves a section for a future video without redesigning the screen).
-///
-/// Shizuku is a third-party, free and open-source tool by RikkaApps. It is
-/// entirely optional for MediaRescue. The guide never claims Shizuku grants
-/// root access: it provides an elevated execution mechanism whose access
-/// level depends on how it was started and on the Android version.
 class ShizukuGuideScreen extends StatelessWidget {
   const ShizukuGuideScreen({super.key});
 
   static const _steps = <(String, String)>[
     (
       'Install Shizuku',
-      'Install Shizuku from its official source — the Google Play Store or '
-          'the official GitHub releases. MediaRescue never bundles or '
-          'installs Shizuku for you.',
+      'Install Shizuku from its official source — Google Play Store or GitHub releases. MediaRescue never bundles or installs Shizuku.',
     ),
-    (
-      'Open Shizuku',
-      'Launch the Shizuku app once it is installed.',
-    ),
+    ('Open Shizuku', 'Launch the Shizuku app once installed.'),
     (
       'Enable Developer options',
-      'If your device does not have Developer options enabled yet, Shizuku '
-          'will show you how to enable them in your device settings.',
+      'If Developer options are not enabled yet, Shizuku guides you in your device settings.',
     ),
     (
       'Enable Wireless debugging',
-      'On Android 11 and above, enable Wireless debugging (Developer options '
-          '→ Wireless debugging). On older Android versions you need a '
-          'computer with adb to start Shizuku instead.',
+      'On Android 11 and above, enable Wireless debugging (Developer options → Wireless debugging). On older Android versions use adb via PC.',
     ),
     (
       'Pair Shizuku',
-      'Follow Shizuku\u2019s pairing process — enter the wireless debugging '
-          'pairing code when prompted. This is a one-time step.',
+      'Enter the wireless debugging pairing code when prompted inside Shizuku.',
     ),
     (
       'Start the Shizuku service',
-      'Press "Start" inside the Shizuku app. Shizuku must be started again '
-          'after every device reboot on non-rooted devices.',
+      'Press "Start" in the Shizuku app. Re-start after device reboots.',
     ),
     (
       'Return to MediaRescue',
-      'Come back to MediaRescue. The Advanced Scanning screen detects a '
-          'running Shizuku service automatically.',
+      'Come back to MediaRescue. Advanced Scanning automatically detects a running Shizuku service.',
     ),
     (
       'Grant MediaRescue authorization',
-      'When prompted (or via Settings → Advanced Scanning), allow '
-          'MediaRescue to use Shizuku. You can revoke this at any time in '
-          'the Shizuku app.',
+      'When prompted, allow MediaRescue to use Shizuku. Revoke anytime in Shizuku.',
     ),
     (
       'Start Advanced Scanning',
-      'Open Advanced Scanning from the Home screen and press "Start Advanced '
-          'Scan" to read Android/data and Android/obb.',
+      'Press "Start Advanced Scan" on the Advanced Scanning screen.',
     ),
   ];
 
@@ -68,19 +50,20 @@ class ShizukuGuideScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Shizuku Setup Guide')),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: AppSpacing.pagePadding,
         children: [
           _IntroCard(theme: theme),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.md),
           ..._steps.indexed.map((step) {
             final (index, (title, body)) = step;
-            return _StepCard(index: index + 1, title: title, body: body);
+            return Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+              child: _StepCard(index: index + 1, title: title, body: body),
+            );
           }),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.md),
           const _OfficialSourcesCard(),
-          const SizedBox(height: 8),
-          const _VideoPlaceholderCard(),
-          const SizedBox(height: 24),
+          const SizedBox(height: AppSpacing.xl),
         ],
       ),
     );
@@ -94,49 +77,41 @@ class _IntroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.travel_explore, color: theme.colorScheme.primary),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'What is Shizuku?',
-                    style: theme.textTheme.titleMedium
-                        ?.copyWith(fontWeight: FontWeight.bold),
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              HugeIcon(
+                icon: HugeIcons.strokeRoundedHelpCircle,
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  'What is Shizuku?',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Shizuku is a free, open-source tool that lets apps perform a '
-              'few extra read operations with an elevated execution '
-              'mechanism — it is not root and does not require root. Android '
-              'normally hides the app-private folders Android/data and '
-              'Android/obb from other apps; with Shizuku running, '
-              'MediaRescue can list those two folders so nothing on your '
-              'phone stays invisible.',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
               ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            'Shizuku is a free, open-source tool that allows apps to perform extra read operations without requiring root access. With Shizuku, MediaRescue can list Android/data and Android/obb folders so no files remain hidden.',
+            style: theme.textTheme.bodySmall,
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            'Shizuku is completely optional — all standard scanning and rescue features work normally without it.',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: AppColors.primary,
+              fontWeight: FontWeight.w600,
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Shizuku is completely optional — every other MediaRescue '
-              'feature works normally without it. All scanning is read-only '
-              'and stays on your device.',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -156,26 +131,44 @@ class _StepCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        leading: CircleAvatar(
-          radius: 14,
-          backgroundColor: theme.colorScheme.primaryContainer,
-          child: Text(
-            '$index',
-            style: theme.textTheme.labelMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: theme.colorScheme.onPrimaryContainer,
+    return AppCard(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primary.withOpacity(0.15),
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Text(
+                '$index',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: theme.colorScheme.primary,
+                ),
+              ),
             ),
           ),
-        ),
-        title: Text(
-          title,
-          style:
-              theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
-        ),
-        subtitle: Text(body, style: theme.textTheme.bodySmall),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(body, style: theme.textTheme.bodySmall),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -187,85 +180,66 @@ class _OfficialSourcesCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Official sources',
-              style:
-                  theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Official Sources',
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.bold,
             ),
-            const SizedBox(height: 8),
-            ListTile(
-              dense: true,
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.shop_outlined),
-              title: const Text('Shizuku on Google Play (official)'),
-              subtitle: const Text('moe.shizuku.privileged.api'),
-              trailing: const Icon(Icons.open_in_new, size: 18),
-              onTap: () async {
-                final ok = await LinkService.openShizukuPlayStore();
-                if (!ok && context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Could not open the Play Store.')),
-                  );
-                }
-              },
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            leading: const HugeIcon(
+              icon: HugeIcons.strokeRoundedPlayStore,
+              color: AppColors.primary,
             ),
-            ListTile(
-              dense: true,
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.code),
-              title: const Text('Shizuku on GitHub (official)'),
-              subtitle: const Text('github.com/RikkaApps/Shizuku'),
-              trailing: const Icon(Icons.open_in_new, size: 18),
-              onTap: () async {
-                final ok = await LinkService.openUrl(LinkService.shizukuGitHubUrl);
-                if (!ok && context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Could not open the browser.')),
-                  );
-                }
-              },
+            title: const Text('Shizuku on Google Play (Official)'),
+            subtitle: const Text('moe.shizuku.privileged.api'),
+            trailing: const HugeIcon(
+              icon: HugeIcons.strokeRoundedLinkSquare02,
+              size: 18,
             ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Reserved for a future video tutorial — the text guide above is fully
-/// usable on its own and this section requires no redesign to extend.
-class _VideoPlaceholderCard extends StatelessWidget {
-  const _VideoPlaceholderCard();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Icon(Icons.videocam_outlined, size: 40, color: theme.colorScheme.outline),
-            const SizedBox(height: 8),
-            Text(
-              'Video Guide',
-              style:
-                  theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+            onTap: () async {
+              final ok = await LinkService.openShizukuPlayStore();
+              if (!ok && context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Could not open the Play Store.'),
+                  ),
+                );
+              }
+            },
+          ),
+          ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            leading: const HugeIcon(
+              icon: HugeIcons.strokeRoundedCode,
+              color: AppColors.secondary,
             ),
-            const SizedBox(height: 4),
-            Text(
-              'Video tutorial coming soon.',
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            title: const Text('Shizuku on GitHub (Official)'),
+            subtitle: const Text('github.com/RikkaApps/Shizuku'),
+            trailing: const HugeIcon(
+              icon: HugeIcons.strokeRoundedLinkSquare02,
+              size: 18,
             ),
-          ],
-        ),
+            onTap: () async {
+              final ok = await LinkService.openUrl(
+                LinkService.shizukuGitHubUrl,
+              );
+              if (!ok && context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Could not open browser.')),
+                );
+              }
+            },
+          ),
+        ],
       ),
     );
   }
