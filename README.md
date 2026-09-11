@@ -144,11 +144,11 @@ Why this project matters: it's lightweight, open-source (MIT), and designed to r
 
 | Onboarding | Home / Library | Gallery | Preview |
 |---|---|---|---|
-| <img src="fastlane/metadata/android/en-US/images/1.png"> | <img src="fastlane/metadata/android/en-US/images/2.png"> | <img src="fastlane/metadata/android/en-US/images/3.png"> | <img src="fastlane/metadata/android/en-US/images/4.png"> |
+| <img src="assets/images/screenshots/1.png"> | <img src="assets/images/screenshots/2.png"> | <img src="assets/images/screenshots/4.png"> | <img src="assets/images/screenshots/8.png"> |
 
 | Large Files | Search | Browse | Settings |
 |---|---|---|---|
-| <img src="fastlane/metadata/android/en-US/images/5.png"> |<img src="fastlane/metadata/android/en-US/images/6.png"> | <img src="fastlane/metadata/android/en-US/images/7.png"> | <img src="fastlane/metadata/android/en-US/images/8.png"> |
+| <img src="assets/images/screenshots/7.png"> |<img src="assets/images/screenshots/5.png"> | <img src="assets/images/screenshots/3.png"> | <img src="assets/images/screenshots/6.png"> |
 
 **Demo video:** coming soon
 
