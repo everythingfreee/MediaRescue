@@ -19,7 +19,7 @@ class AppBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final bgColor = color ?? theme.colorScheme.primary.withOpacity(0.15);
+    final bgColor = color ?? theme.colorScheme.primary.withValues(alpha:0.15);
     final fgColor = textColor ?? theme.colorScheme.primary;
 
     return Container(

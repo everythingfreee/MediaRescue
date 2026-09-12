@@ -189,8 +189,8 @@ class _ScanProgressHeroCard extends StatelessWidget {
     final theme = Theme.of(context);
 
     return AppCard(
-      color: theme.colorScheme.primaryContainer.withOpacity(0.4),
-      borderColor: theme.colorScheme.primary.withOpacity(0.3),
+      color: theme.colorScheme.primaryContainer.withValues(alpha: 0.4),
+      borderColor: theme.colorScheme.primary.withValues(alpha: 0.3),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -291,7 +291,7 @@ class _ErrorCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppCard(
-      borderColor: AppColors.error.withOpacity(0.5),
+      borderColor: AppColors.error.withValues(alpha: 0.5),
       child: Row(
         children: [
           const HugeIcon(
@@ -359,7 +359,7 @@ class _StorageSummaryCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(AppSpacing.sm),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withOpacity(0.12),
+                  color: theme.colorScheme.primary.withValues(alpha: 0.12),
                   borderRadius: AppRadius.borderMd,
                 ),
                 child: HugeIcon(
@@ -574,14 +574,14 @@ class _QuickActionTile extends StatelessWidget {
     return AppCard(
       onTap: onTap,
       padding: const EdgeInsets.all(AppSpacing.md),
-      color: color.withOpacity(0.1),
-      borderColor: color.withOpacity(0.2),
+      color: color.withValues(alpha: 0.1),
+      borderColor: color.withValues(alpha: 0.2),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(AppSpacing.xs + 2),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.2),
+              color: color.withValues(alpha: 0.2),
               borderRadius: AppRadius.borderSm,
             ),
             child: HugeIcon(icon: icon, color: color, size: 20),

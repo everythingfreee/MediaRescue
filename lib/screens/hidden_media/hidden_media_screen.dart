@@ -363,7 +363,7 @@ class _HiddenMediaListView extends ConsumerWidget {
         Expanded(
           child: ListView.separated(
             itemCount: items.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
+            separatorBuilder: (_, _) => const Divider(height: 1),
             itemBuilder: (context, index) {
               final entry = items[index];
               final item = entry.item;

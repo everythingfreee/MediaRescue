@@ -60,7 +60,7 @@ class AppTheme {
       ),
       chipTheme: ChipThemeData(
         backgroundColor: AppColors.lightSurfaceElevated,
-        selectedColor: AppColors.primary.withOpacity(0.15),
+        selectedColor: AppColors.primary.withValues(alpha: 0.15),
         side: BorderSide.none,
         shape: RoundedRectangleBorder(borderRadius: AppRadius.borderPill),
         labelStyle: textTheme.labelLarge,
@@ -129,7 +129,7 @@ class AppTheme {
       ),
       chipTheme: ChipThemeData(
         backgroundColor: AppColors.darkSurfaceElevated,
-        selectedColor: AppColors.primary.withOpacity(0.25),
+        selectedColor: AppColors.primary.withValues(alpha: 0.25),
         side: BorderSide.none,
         shape: RoundedRectangleBorder(borderRadius: AppRadius.borderPill),
         labelStyle: textTheme.labelLarge,

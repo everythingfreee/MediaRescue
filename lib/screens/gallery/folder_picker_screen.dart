@@ -131,7 +131,7 @@ class _FolderPickerScreenState extends ConsumerState<FolderPickerScreen> {
     return ListView.separated(
       padding: const EdgeInsets.all(AppSpacing.md),
       itemCount: folders.length,
-      separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.xs),
+      separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.xs),
       itemBuilder: (context, index) {
         final folder = folders[index];
         return ListTile(

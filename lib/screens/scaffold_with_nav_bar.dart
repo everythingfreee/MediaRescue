@@ -120,7 +120,7 @@ class _ScaffoldWithNavBarState extends State<ScaffoldWithNavBar> {
               border: Border.all(color: theme.colorScheme.outline, width: 1),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(theme.brightness == Brightness.dark ? 0.3 : 0.06),
+                  color: Colors.black.withValues(alpha:theme.brightness == Brightness.dark ? 0.3 : 0.06),
                   blurRadius: 20,
                   offset: const Offset(0, 4),
                 ),
@@ -144,7 +144,7 @@ class _ScaffoldWithNavBarState extends State<ScaffoldWithNavBar> {
                     ),
                     decoration: BoxDecoration(
                       color: isSelected
-                          ? theme.colorScheme.primary.withOpacity(0.14)
+                          ? theme.colorScheme.primary.withValues(alpha:0.14)
                           : Colors.transparent,
                       borderRadius: AppRadius.borderPill,
                     ),

@@ -84,7 +84,7 @@ class SelectionBottomBar extends ConsumerWidget {
         border: Border.all(color: theme.colorScheme.outline, width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.12),
+            color: Colors.black.withValues(alpha: 0.12),
             blurRadius: 16,
             offset: const Offset(0, 4),
           ),
@@ -95,7 +95,7 @@ class SelectionBottomBar extends ConsumerWidget {
           Container(
             padding: const EdgeInsets.all(AppSpacing.xs + 2),
             decoration: BoxDecoration(
-              color: theme.colorScheme.primary.withOpacity(0.15),
+              color: theme.colorScheme.primary.withValues(alpha:0.15),
               shape: BoxShape.circle,
             ),
             child: Text(

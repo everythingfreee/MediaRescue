@@ -105,7 +105,7 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
           child: Container(
             padding: const EdgeInsets.all(AppSpacing.lg),
             decoration: BoxDecoration(
-              color: theme.colorScheme.primary.withOpacity(0.12),
+              color: theme.colorScheme.primary.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
             child: HugeIcon(
@@ -282,7 +282,7 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
               itemCount: filters.length,
-              separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.xs),
+              separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.xs),
               itemBuilder: (context, index) {
                 final (filter, icon, label) = filters[index];
                 final isSelected = gallery.filter == filter;
@@ -601,7 +601,7 @@ class _GalleryGridTile extends ConsumerWidget {
               ? Border.all(color: theme.colorScheme.primary, width: 2)
               : Border.all(color: theme.colorScheme.outline, width: 1),
           color: isSelected
-              ? theme.colorScheme.primary.withOpacity(0.12)
+              ? theme.colorScheme.primary.withValues(alpha: 0.12)
               : theme.cardTheme.color,
         ),
         clipBehavior: Clip.antiAlias,

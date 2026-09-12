@@ -46,7 +46,7 @@ Future<void> showFileActionsSheet(
               leading: Container(
                 padding: const EdgeInsets.all(AppSpacing.sm),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.primaryContainer.withOpacity(0.5),
+                  color: theme.colorScheme.primaryContainer.withValues(alpha:0.5),
                   borderRadius: AppRadius.borderSm,
                 ),
                 child: HugeIcon(

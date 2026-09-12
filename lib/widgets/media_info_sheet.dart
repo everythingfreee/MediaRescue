@@ -175,7 +175,7 @@ class _MediaInfoSheetState extends State<_MediaInfoSheet> {
                         controller: scrollController,
                         padding: const EdgeInsets.all(AppSpacing.lg),
                         itemCount: rows.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
+                        separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
                         itemBuilder: (context, index) {
                           final row = rows[index];
                           return _InfoRow(label: row.$1, value: row.$2);
@@ -204,7 +204,7 @@ class _InfoRow extends StatelessWidget {
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerLow,
         borderRadius: AppRadius.borderMd,
-        border: Border.all(color: theme.colorScheme.outline.withOpacity(0.5), width: 1),
+        border: Border.all(color: theme.colorScheme.outline.withValues(alpha:0.5), width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

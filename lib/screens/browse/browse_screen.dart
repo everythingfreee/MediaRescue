@@ -187,7 +187,7 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
     return ListView.separated(
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
       itemCount: sortedFiles.length,
-      separatorBuilder: (_, __) => const Divider(height: 1),
+      separatorBuilder: (_, _) => const Divider(height: 1),
       itemBuilder: (context, index) {
         final item = sortedFiles[index];
         return _FileListTile(item: item, allFiles: sortedFiles);

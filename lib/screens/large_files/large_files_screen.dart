@@ -189,7 +189,7 @@ class LargeFilesScreen extends ConsumerWidget {
               : ListView.separated(
                   padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
                   itemCount: largeFiles.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  separatorBuilder: (_, _) => const Divider(height: 1),
                   itemBuilder: (context, index) {
                     final item = largeFiles[index];
                     final isSelected = selected.contains(item.path);

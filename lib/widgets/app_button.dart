@@ -86,7 +86,7 @@ class AppButton extends StatelessWidget {
       width: isFullWidth ? double.infinity : null,
       height: 48,
       child: Material(
-        color: onPressed == null ? bg.withOpacity(0.5) : bg,
+        color: onPressed == null ? bg.withValues(alpha:0.5) : bg,
         shape: RoundedRectangleBorder(
           borderRadius: AppRadius.borderMd,
           side: border,

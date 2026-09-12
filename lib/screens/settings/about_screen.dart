@@ -28,7 +28,7 @@ class AboutScreen extends StatelessWidget {
                 width: 96,
                 height: 96,
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withOpacity(0.12),
+                  color: theme.colorScheme.primary.withValues(alpha: 0.12),
                   borderRadius: AppRadius.borderLg,
                 ),
                 clipBehavior: Clip.antiAlias,
@@ -117,7 +117,7 @@ class _AppVersion extends StatelessWidget {
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs),
           decoration: BoxDecoration(
-            color: theme.colorScheme.primaryContainer.withOpacity(0.5),
+            color: theme.colorScheme.primaryContainer.withValues(alpha:0.5),
             borderRadius: AppRadius.borderPill,
           ),
           child: Text(

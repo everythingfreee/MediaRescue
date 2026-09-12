@@ -135,8 +135,8 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                     AppCard(
                       width: 200,
                       height: 200,
-                      color: AppColors.audio.withOpacity(0.15),
-                      borderColor: AppColors.audio.withOpacity(0.3),
+                      color: AppColors.audio.withValues(alpha:0.15),
+                      borderColor: AppColors.audio.withValues(alpha:0.3),
                       child: Center(
                         child: HugeIcon(
                           icon: HugeIcons.strokeRoundedMusicNote01,

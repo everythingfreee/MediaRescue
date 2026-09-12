@@ -78,7 +78,7 @@ class _PermissionScreenState extends ConsumerState<PermissionScreen>
                   width: 100,
                   height: 100,
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.primary.withOpacity(0.12),
+                    color: theme.colorScheme.primary.withValues(alpha: 0.12),
                     borderRadius: AppRadius.borderLg,
                   ),
                   clipBehavior: Clip.antiAlias,

@@ -34,7 +34,7 @@ class ThumbnailImage extends ConsumerWidget {
         width: width,
         height: height,
         decoration: BoxDecoration(
-          color: Colors.amber.withOpacity(0.15),
+          color: Colors.amber.withValues(alpha:0.15),
           borderRadius: BorderRadius.circular(borderRadius),
         ),
         child: Center(
