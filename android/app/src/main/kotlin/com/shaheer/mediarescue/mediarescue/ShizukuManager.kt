@@ -47,7 +47,9 @@ class ShizukuManager {
         const val REQUEST_CODE_PERMISSION = 1001
 
         /** Version tag of the Shizuku user service (bump to force a restart). */
-        const val USER_SERVICE_VERSION = 1
+        // Bump whenever the User Service/AIDL contract changes so Shizuku
+        // cannot keep an older service process alive after an app update.
+        const val USER_SERVICE_VERSION = 2
 
         // startScan() return codes (see IAdvancedScanner.aidl).
         const val START_STARTED = 0
@@ -297,12 +299,24 @@ class ShizukuManager {
 
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
-            Log.i(TAG, "user service connected")
+            Log.i(TAG, "user service connected; binder=${binder != null}")
+            if (binder == null) {
+                synchronized(stateLock) {
+                    pendingStartScan = false
+                    userServiceStarting.set(false)
+                    userServiceConnected.set(false)
+                    userService = null
+                    serviceBinder = null
+                }
+                emitEvent(mapOf("type" to "error", "errorType" to "SERVICE_START_FAILED", "message" to "The Advanced Scanning service connected without a usable binder."))
+                emitStateChanged()
+                return
+            }
             synchronized(stateLock) {
                 userServiceStarting.set(false)
                 userServiceConnected.set(true)
                 serviceBinder = binder
-                userService = binder?.let { IAdvancedScanner.Stub.asInterface(it) }
+                userService = IAdvancedScanner.Stub.asInterface(binder)
             }
             emitStateChanged()
             tryStartPendingScan()
@@ -343,6 +357,7 @@ class ShizukuManager {
     }
 
     private var pendingStartScan = false
+    private var pendingStartToken = 0L
     private var lastFilesFound = 0
     private var lastErrors = 0
 
@@ -358,19 +373,41 @@ class ShizukuManager {
             )
             return
         }
-        val service = synchronized(stateLock) { userService }
+        val service = synchronized(stateLock) {
+            val binder = serviceBinder
+            if (userService != null && binder?.isBinderAlive == true) userService else null
+        }
         if (service != null) {
             beginScan(service)
             return
         }
         synchronized(stateLock) {
+            userService = null
+            serviceBinder = null
+            userServiceConnected.set(false)
             pendingStartScan = true
+            pendingStartToken += 1
             userServiceStarting.set(true)
         }
         emitStateChanged()
         try {
             Log.i(TAG, "binding Advanced Scanning user service")
             Shizuku.bindUserService(userServiceArgs, serviceConnection)
+            val token = synchronized(stateLock) { pendingStartToken }
+            mainHandler.postDelayed({
+                val timedOut = synchronized(stateLock) {
+                    pendingStartScan && pendingStartToken == token
+                }
+                if (timedOut) {
+                    synchronized(stateLock) {
+                        pendingStartScan = false
+                        userServiceStarting.set(false)
+                    }
+                    Log.e(TAG, "user service connection timed out")
+                    emitEvent(mapOf("type" to "error", "errorType" to "SERVICE_START_FAILED", "message" to "The Advanced Scanning service did not connect. Restart Shizuku and try again."))
+                    emitStateChanged()
+                }
+            }, 15000L)
         } catch (t: Throwable) {
             synchronized(stateLock) {
                 pendingStartScan = false
@@ -423,9 +460,20 @@ class ShizukuManager {
 
     /** Cancels the active scan (safe no-op when nothing is running). */
     fun stopAdvancedScan() {
-        val service = synchronized(stateLock) { userService } ?: return
+        val service = synchronized(stateLock) {
+            pendingStartScan = false
+            pendingStartToken += 1
+            userServiceStarting.set(false)
+            userService
+        }
+        if (service == null) {
+            emitEvent(mapOf("type" to "completed", "cancelled" to true, "totalFiles" to lastFilesFound, "errorCount" to lastErrors))
+            emitStateChanged()
+            return
+        }
         try {
             service.requestCancel()
+            Log.i(TAG, "scan cancellation requested")
         } catch (e: RemoteException) {
             Log.w(TAG, "requestCancel IPC failed: ${e.message}")
         }

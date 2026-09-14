@@ -322,6 +322,10 @@ MediaRescue requires storage access to scan and manage files. Here's exactly wha
 | `MANAGE_EXTERNAL_STORAGE` | Android 11+ | **"All files access"** — required for full storage scanning & management |
 | `READ_EXTERNAL_STORAGE` | Android 5–10 (maxSdk 32) | Read public media and files |
 | `WRITE_EXTERNAL_STORAGE` | Android ≤ 9 (maxSdk 29) | Copy / move / delete files |
+| `FOREGROUND_SERVICE` / `FOREGROUND_SERVICE_MEDIA_PLAYBACK` | Android 9+ / 14+ | Reliable background audio/video playback |
+| `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` | Android 6+ | Optional user-approved exemption for longer background playback |
+
+Battery optimization exemption is optional. MediaRescue asks only from Settings when the user chooses **Allow**; it never silently changes this system setting.
 
 ### Privacy Guarantee
 
@@ -349,7 +353,11 @@ mediarescue/
 │   │   │   ├── AndroidManifest.xml           # Permissions & app config (storage, INTERNET, POST_NOTIFICATIONS, FileProvider)
 │   │   │   ├── res/xml/file_paths.xml        # FileProvider paths used for sharing files
 │   │   │   └── kotlin/com/shaheer/mediarescue/mediarescue/
-│   │   │       └── MainActivity.kt           # Native Kotlin: MethodChannel (scan, list, copy/move/delete, thumbnails, media info, MediaStore index), EventChannel scan stream, Open-File-Location, rescue settings
+│   │   │       ├── MainActivity.kt           # Storage, Shizuku, media playback and battery channels
+│   │   │       ├── MediaPlaybackService.kt  # MediaSession foreground service and notification controls
+│   │   │       ├── AdvancedScannerUserService.kt # Read-only Shizuku user service
+│   │   │       └── ShizukuManager.kt         # Shizuku lifecycle and scan bridge
+│   │   ├── proguard-rules.pro                # Release keep rules for reflected native services
 │   │   ├── build.gradle.kts                  # App module build config & signing
 │   │   └── google-services.json              # Firebase config (git-ignored)
 │   ├── build.gradle.kts                      # Root Gradle config
@@ -397,10 +405,10 @@ mediarescue/
 │   │   ├── onboarding/
 │   │   │   └── permission_screen.dart        # First-launch "All files access" guidance
 │   │   ├── preview/
-│   │   │   ├── immersive_media_viewer_screen.dart  # Vertical media feed: gestures, rescue, tour, actions menu
+│   │   │   ├── immersive_media_viewer_screen.dart  # Media feed, fullscreen orientation, repeat and lifecycle handoff
 │   │   │   ├── image_viewer_screen.dart      # Standalone image viewer
 │   │   │   ├── video_player_screen.dart      # Standalone video player
-│   │   │   ├── audio_player_screen.dart      # In-app audio player
+│   │   │   ├── audio_player_screen.dart      # In-app audio player and background handoff
 │   │   │   └── pdf_viewer_screen.dart        # In-app PDF viewer
 │   │   ├── search/
 │   │   │   └── search_screen.dart            # Search + Smart Filters + active-filter chips + file actions
@@ -414,7 +422,8 @@ mediarescue/
 │   │   ├── advanced_scan_service.dart        # Shizuku Advanced Scanner MethodChannel + EventChannel bridge (dedicated channels)
 │   │   ├── notification_service.dart         # FCM listeners, topic subscription, foreground notifications
 │   │   ├── update_service.dart               # Google Play In-App Update check (Flexible update flow)
-│   │   └── link_service.dart                 # URL/email launch helpers
+│   │   ├── link_service.dart                 # URL/email launch helpers
+│   │   └── background_media_service.dart     # MediaSession bridge and playback settings
 │   └── widgets/
 │       ├── file_actions_sheet.dart           # Shared file-actions sheet (Information / Open Location / Preview)
 │       ├── media_info_sheet.dart             # Detailed metadata bottom sheet (resolution, duration, bitrate…)
@@ -534,7 +543,32 @@ git push --set-upstream origin feat/your-feature
 ---
 
 ## Changelog
+### v1.0.8 — Media Controls, Background Playback and Advanced Scan Reliability
 
+**✨ New Features**
+- Advanced Scanning selection now works with long-press in Large Icons/Grid views, including multi-selection and rescue actions.
+- Full-screen landscape video playback preserves the same controller, position and playback state.
+- Foreground video playback keeps the screen awake; paused and background playback release the wake lock.
+- Videos repeat automatically at completion.
+- Background audio/video playback uses an Android MediaSession foreground service.
+- Media notifications expose title, artwork, play/pause, previous/next, seek state and stop controls.
+- Settings now control background playback and media notifications.
+- Battery optimization exemption is an optional, user-initiated setting for devices that aggressively stop background services.
+- Added release-safe Shizuku API permission and keep rules for Advanced Scanning.
+
+**🛠️ Modified Files**
+- `lib/screens/advanced_scan/advanced_scan_screen.dart` – fixed grid/large-icon long-press selection.
+- `lib/screens/preview/immersive_media_viewer_screen.dart` – fullscreen orientation, repeat, wake-lock and lifecycle handoff.
+- `lib/screens/preview/audio_player_screen.dart` – background audio handoff and playlist state.
+- `lib/screens/settings/settings_screen.dart` – media playback and battery optimization controls.
+- `lib/services/background_media_service.dart` – media-session MethodChannel bridge and settings API.
+- `lib/utils/screen_wake.dart` – wake-lock control.
+
+**📦 Added Files**
+- `android/app/src/main/kotlin/com/shaheer/mediarescue/mediarescue/MediaPlaybackService.kt` – MediaSession foreground service and notification controls.
+- `android/app/proguard-rules.pro` – release keep rules for Shizuku and media services.
+- `android/app/src/main/AndroidManifest.xml` – media playback, Shizuku API and optional battery permissions.
+- `android/app/src/main/kotlin/com/shaheer/mediarescue/mediarescue/MainActivity.kt` – playback and battery settings channels.
 ### v1.0.7 — Premium UI & Custom Notifications
 
 **✨ Redesigned User Interface**

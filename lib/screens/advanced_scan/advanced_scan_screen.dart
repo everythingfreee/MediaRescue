@@ -856,13 +856,18 @@ class _AdvancedGridTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final isSelected = selected;
     return InkWell(
       onTap: onTap,
+      onLongPress: () => ref.read(selectionProvider.notifier).toggle(item),
       borderRadius: AppRadius.borderMd,
       child: Container(
         decoration: BoxDecoration(
           borderRadius: AppRadius.borderMd,
-          border: Border.all(color: theme.colorScheme.outline, width: 1),
+          border: Border.all(
+            color: isSelected ? theme.colorScheme.primary : theme.colorScheme.outline,
+            width: 2,
+          ),
           color: theme.cardTheme.color,
         ),
         clipBehavior: Clip.antiAlias,

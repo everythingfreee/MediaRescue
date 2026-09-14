@@ -52,4 +52,3 @@ app.*.map.json
 /android/gradle/wrapper/gradle-wrapper.properties
 /lib/firebase_options.dart
 firebase.json
-original.kt

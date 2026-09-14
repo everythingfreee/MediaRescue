@@ -11,6 +11,7 @@ import '../../providers/rescue_provider.dart';
 import '../../providers/scanner_provider.dart';
 import '../../providers/storage_provider.dart';
 import '../../services/notification_service.dart';
+import '../../services/background_media_service.dart';
 import '../../widgets/app_card.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -102,6 +103,11 @@ class SettingsScreen extends ConsumerWidget {
           const _SectionHeader(label: 'Notifications'),
           const SizedBox(height: AppSpacing.sm),
           const AppCard(child: _UpdateNotificationsTile()),
+          const SizedBox(height: AppSpacing.xl),
+
+          const _SectionHeader(label: 'Background Media'),
+          const SizedBox(height: AppSpacing.sm),
+          const AppCard(child: _BackgroundMediaSettings()),
           const SizedBox(height: AppSpacing.xl),
 
           const _SectionHeader(label: 'Specialized Discovery'),
@@ -472,6 +478,98 @@ class _UpdateNotificationsTile extends StatefulWidget {
   @override
   State<_UpdateNotificationsTile> createState() =>
       _UpdateNotificationsTileState();
+}
+
+class _BackgroundMediaSettings extends StatefulWidget {
+  const _BackgroundMediaSettings();
+
+  @override
+  State<_BackgroundMediaSettings> createState() => _BackgroundMediaSettingsState();
+}
+
+class _BackgroundMediaSettingsState extends State<_BackgroundMediaSettings> {
+  bool? _backgroundPlayback;
+  bool? _mediaNotifications;
+  bool _batteryOptimizationIgnored = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final playback = await BackgroundMediaService.setting('background_playback_enabled');
+    final notifications = await BackgroundMediaService.setting(
+      'media_playback_notifications_enabled',
+    );
+    final battery = await BackgroundMediaService.isIgnoringBatteryOptimizations();
+    if (!mounted) return;
+    setState(() {
+      _backgroundPlayback = playback;
+      _mediaNotifications = notifications;
+      _batteryOptimizationIgnored = battery;
+    });
+  }
+
+  Future<void> _set(String key, bool value, void Function() update) async {
+    await BackgroundMediaService.setSetting(key, value);
+    if (mounted) setState(update);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        SwitchListTile(
+          secondary: const HugeIcon(icon: HugeIcons.strokeRoundedPlay),
+          title: const Text('Background playback'),
+          subtitle: const Text('Continue audio or video after leaving the app'),
+          value: _backgroundPlayback ?? false,
+          onChanged: _backgroundPlayback == null
+              ? null
+              : (value) => _set(
+                    'background_playback_enabled',
+                    value,
+                    () => _backgroundPlayback = value,
+                  ),
+        ),
+        const Divider(),
+        SwitchListTile(
+          secondary: const HugeIcon(icon: HugeIcons.strokeRoundedNotification01),
+          title: const Text('Media playback notification'),
+          subtitle: const Text('Show Android controls, artwork and progress'),
+          value: _mediaNotifications ?? false,
+          onChanged: _mediaNotifications == null
+              ? null
+              : (value) => _set(
+                    'media_playback_notifications_enabled',
+                    value,
+                    () => _mediaNotifications = value,
+                  ),
+        ),
+        const Divider(),
+        ListTile(
+          leading: const HugeIcon(icon: HugeIcons.strokeRoundedBatteryCharging01),
+          title: const Text('Battery optimization'),
+          subtitle: Text(
+            _batteryOptimizationIgnored
+                ? 'Not restricted for more reliable background playback'
+                : 'Restricted by Android (optional)',
+          ),
+          trailing: _batteryOptimizationIgnored
+              ? const Icon(Icons.check_circle, color: AppColors.success)
+              : TextButton(
+                  onPressed: () async {
+                    await BackgroundMediaService.requestBatteryOptimizationExemption();
+                    await _load();
+                  },
+                  child: const Text('Allow'),
+                ),
+        ),
+      ],
+    );
+  }
 }
 
 class _UpdateNotificationsTileState extends State<_UpdateNotificationsTile> {

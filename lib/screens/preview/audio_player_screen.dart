@@ -5,6 +5,7 @@ import 'package:video_player/video_player.dart';
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_spacing.dart';
 import '../../models/file_item.dart';
+import '../../services/background_media_service.dart';
 import '../../widgets/app_card.dart';
 
 class AudioPlayerScreen extends StatefulWidget {
@@ -21,10 +22,12 @@ class AudioPlayerScreen extends StatefulWidget {
   State<AudioPlayerScreen> createState() => _AudioPlayerScreenState();
 }
 
-class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
+class _AudioPlayerScreenState extends State<AudioPlayerScreen>
+    with WidgetsBindingObserver {
   VideoPlayerController? _controller;
   late int _currentIndex;
   bool _initialized = false;
+  bool _backgroundPlaybackActive = false;
 
   List<FileItem> get _audios {
     final files = widget.allFiles.cast<FileItem>();
@@ -35,6 +38,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     final audios = _audios;
     _currentIndex = audios.indexOf(widget.item);
     if (_currentIndex < 0) _currentIndex = 0;
@@ -75,9 +79,60 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _controller?.dispose();
     _controller = null;
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused) {
+      _startBackgroundPlayback();
+    } else if (state == AppLifecycleState.resumed) {
+      _restoreForegroundPlayback();
+    }
+  }
+
+  Future<void> _startBackgroundPlayback() async {
+    final controller = _controller;
+    if (_backgroundPlaybackActive ||
+        controller == null ||
+        !_initialized ||
+        !controller.value.isPlaying) {
+      return;
+    }
+    if (!await BackgroundMediaService.setting('background_playback_enabled')) {
+      return;
+    }
+    final item = _audios[_currentIndex];
+    _backgroundPlaybackActive = true;
+    await BackgroundMediaService.start(
+      path: item.path,
+      title: item.name,
+      position: controller.value.position,
+      playing: true,
+      paths: _audios.map((audio) => audio.path).toList(),
+      titles: _audios.map((audio) => audio.name).toList(),
+      index: _currentIndex,
+      notificationEnabled: await BackgroundMediaService.setting(
+        'media_playback_notifications_enabled',
+      ),
+    );
+    await controller.pause();
+  }
+
+  Future<void> _restoreForegroundPlayback() async {
+    if (!_backgroundPlaybackActive) return;
+    final background = await BackgroundMediaService.state();
+    final controller = _controller;
+    _backgroundPlaybackActive = false;
+    await BackgroundMediaService.stop();
+    if (!mounted || controller == null || !_initialized) return;
+    await controller.seekTo(
+      Duration(milliseconds: background?.positionMs ?? 0),
+    );
+    if (background?.playing == true) await controller.play();
   }
 
   void _togglePlay() {

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:photo_view/photo_view.dart';
+import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../app/app.dart' show routeObserver;
@@ -13,6 +14,8 @@ import '../../providers/rescue_provider.dart';
 import '../../providers/storage_provider.dart';
 import '../../widgets/media_info_sheet.dart';
 import '../../widgets/thumbnail_image.dart';
+import '../../services/background_media_service.dart';
+import '../../utils/screen_wake.dart';
 
 const List<String> _shortMonths = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -39,7 +42,8 @@ class ImmersiveMediaViewerScreen extends ConsumerStatefulWidget {
 }
 
 class _ImmersiveMediaViewerScreenState
-    extends ConsumerState<ImmersiveMediaViewerScreen> with RouteAware {
+  extends ConsumerState<ImmersiveMediaViewerScreen>
+  with RouteAware, WidgetsBindingObserver {
   static const List<double> _speedOptions = [0.5, 1.0, 1.5, 2.0];
 
   /// Width of the touch zones along the left/right edges of a video used for
@@ -67,6 +71,8 @@ class _ImmersiveMediaViewerScreenState
   Timer? _controlsTimer;
   bool _cleanFullscreen = false;
   bool _shouldResumeOnReturn = false;
+  bool _backgroundPlaybackActive = false;
+  VoidCallback? _videoListener;
 
   // ── Player tour state ─────────────────────────────────────────────────────
   bool _tourVisible = false;
@@ -97,6 +103,7 @@ class _ImmersiveMediaViewerScreenState
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _items = List<FileItem>.from(widget.items);
     _currentIndex = widget.initialIndex.clamp(0, _items.length - 1);
     _pageController = PageController(initialPage: _currentIndex);
@@ -142,6 +149,12 @@ class _ImmersiveMediaViewerScreenState
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    ScreenWake.disable();
+    if (_cleanFullscreen) {
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+      SystemChrome.setPreferredOrientations(DeviceOrientation.values);
+    }
     routeObserver.unsubscribe(this);
     _controlsTimer?.cancel();
     _flashTimer?.cancel();
@@ -149,6 +162,58 @@ class _ImmersiveMediaViewerScreenState
     _disposeVideo();
     _pageController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused) {
+      _startBackgroundPlayback();
+    } else if (state == AppLifecycleState.resumed) {
+      _restoreForegroundPlayback();
+    }
+  }
+
+  Future<void> _startBackgroundPlayback() async {
+    final controller = _videoController;
+    if (_backgroundPlaybackActive ||
+        controller == null ||
+        !_videoInitialized ||
+        !controller.value.isPlaying) {
+      return;
+    }
+    if (!await BackgroundMediaService.setting('background_playback_enabled')) {
+      return;
+    }
+    final item = _items[_currentIndex];
+    final playlist = _items.where((file) => file.isVideo).toList();
+    final playlistIndex = playlist.indexWhere((file) => file.path == item.path);
+    _backgroundPlaybackActive = true;
+    await BackgroundMediaService.start(
+      path: item.path,
+      title: item.name,
+      position: controller.value.position,
+      playing: true,
+      paths: playlist.map((file) => file.path).toList(),
+      titles: playlist.map((file) => file.name).toList(),
+      index: playlistIndex < 0 ? 0 : playlistIndex,
+      notificationEnabled: await BackgroundMediaService.setting(
+        'media_playback_notifications_enabled',
+      ),
+    );
+    await controller.pause();
+    await ScreenWake.disable();
+  }
+
+  Future<void> _restoreForegroundPlayback() async {
+    if (!_backgroundPlaybackActive) return;
+    final background = await BackgroundMediaService.state();
+    final controller = _videoController;
+    _backgroundPlaybackActive = false;
+    await BackgroundMediaService.stop();
+    if (!mounted || controller == null || !_videoInitialized) return;
+    final position = background?.positionMs ?? controller.value.position.inMilliseconds;
+    await controller.seekTo(Duration(milliseconds: position));
+    if (background?.playing == true) await controller.play();
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -280,6 +345,7 @@ class _ImmersiveMediaViewerScreenState
       _videoFailed = false;
     });
     if (old != null) {
+      if (_videoListener != null) old.removeListener(_videoListener!);
       try {
         old.pause();
       } catch (_) {}
@@ -290,6 +356,25 @@ class _ImmersiveMediaViewerScreenState
 
     final controller = VideoPlayerController.file(File(item.path));
     _videoController = controller;
+    _videoListener = () {
+      if (!mounted ||
+          _videoController != controller ||
+          !controller.value.isInitialized) {
+        return;
+      }
+      if (controller.value.isPlaying && !_backgroundPlaybackActive) {
+        ScreenWake.enable();
+      } else {
+        ScreenWake.disable();
+      }
+      if (controller.value.position >= controller.value.duration &&
+          !controller.value.isPlaying &&
+          !_backgroundPlaybackActive) {
+        controller.seekTo(Duration.zero);
+        controller.play();
+      }
+    };
+    controller.addListener(_videoListener!);
     controller.initialize().then((_) {
       if (!mounted || _videoController != controller) {
         try {
@@ -329,6 +414,7 @@ class _ImmersiveMediaViewerScreenState
     _videoInitializing = false;
     _videoFailed = false;
     if (c != null) {
+      if (_videoListener != null) c.removeListener(_videoListener!);
       try {
         c.pause();
       } catch (_) {}
@@ -336,6 +422,7 @@ class _ImmersiveMediaViewerScreenState
         c.dispose();
       } catch (_) {}
     }
+    _videoListener = null;
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -473,17 +560,20 @@ Widget _buildVideoControls(double safeBottom, FileItem item) {
                   tooltip: 'Player guide',
                   onPressed: _openTour,
                 ),
-                IconButton(
-                  icon: Icon(
-                    _cleanFullscreen
-                        ? Icons.fullscreen_exit
-                        : Icons.fullscreen,
-                    color: Colors.white,
+                if (_cleanFullscreen ||
+                    (_videoController?.value.isInitialized == true &&
+                        _videoController!.value.aspectRatio > 1.0))
+                  IconButton(
+                    icon: Icon(
+                      _cleanFullscreen
+                          ? Icons.fullscreen_exit
+                          : Icons.fullscreen,
+                      color: Colors.white,
+                    ),
+                    tooltip:
+                        _cleanFullscreen ? 'Exit fullscreen' : 'Full Screen',
+                    onPressed: _toggleFullscreen,
                   ),
-                  tooltip:
-                      _cleanFullscreen ? 'Exit fullscreen' : 'Clean fullscreen',
-                  onPressed: _toggleFullscreen,
-                ),
                 const SizedBox(width: 4),
               ],
             ),
@@ -817,12 +907,19 @@ Widget _buildSpeedChip() {
   void _enterCleanFullscreen() {
     if (_cleanFullscreen) return;
     _cleanFullscreen = true;
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
     _showControls();
   }
 
   void _exitCleanFullscreen() {
     if (!_cleanFullscreen) return;
     _cleanFullscreen = false;
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    SystemChrome.setPreferredOrientations(DeviceOrientation.values);
     _showControls();
   }
 

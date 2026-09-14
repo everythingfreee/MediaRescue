@@ -64,6 +64,12 @@ android {
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("release")
+            isMinifyEnabled = false
+            isShrinkResources = false
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
 }
@@ -75,6 +81,7 @@ flutter {
 dependencies {
     // Core library desugaring for flutter_local_notifications.
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
+    implementation("androidx.media:media:1.7.0")
 
     // ── Shizuku (optional Advanced Scanning) ─────────────────────────────────
     // Official Shizuku API + provider. Used ONLY by the optional Shizuku-based
