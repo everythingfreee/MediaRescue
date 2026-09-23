@@ -1,1 +1,12 @@
-Initial release of MediaRescue.
+### v1.0.8 — Media Controls, Background Playback and Advanced Scan Reliability
+
+**✨ New Features**
+- Advanced Scanning selection now works with long-press in Large Icons/Grid views, including multi-selection and rescue actions.
+- Full-screen landscape video playback preserves the same controller, position and playback state.
+- Foreground video playback keeps the screen awake; paused and background playback release the wake lock.
+- Videos repeat automatically at completion.
+- Background audio/video playback uses an Android MediaSession foreground service.
+- Media notifications expose title, artwork, play/pause, previous/next, seek state and stop controls.
+- Settings now control background playback and media notifications.
+- Battery optimization exemption is an optional, user-initiated setting for devices that aggressively stop background services.
+- Added release-safe Shizuku API permission and keep rules for Advanced Scanning.

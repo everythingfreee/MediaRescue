@@ -1,51 +1,187 @@
-**MediaRescue** is a lightweight, privacy-first file and media manager for Android. It helps you find, preview, and manage large and duplicate media and files on your device — completely offline.
+# MediaRescue
+
+**Find the media your phone forgot.**
+
+MediaRescue is a privacy-focused, offline-first file and media manager for Android. It helps you find, browse, preview, and manage media files that are hidden, forgotten, difficult to locate, or consuming significant storage space.
+
+Everything is processed locally on your device. No account or cloud upload is required.
 
 ## Features
 
 ### Full Storage Scanning
-- Recursively scans shared storage and removable SD cards
-- Real-time progress with incremental results
-- Save and load scans to avoid re-scanning repeatedly
 
-### Intelligent Gallery View
-- Files grouped by folder, image, video, audio, PDF, and more
-- Fast thumbnail generation for smooth browsing
+* Recursively scans accessible internal storage and removable SD cards
+* Discovers images, videos, audio, PDFs, and other supported files
+* Incremental results while scanning
+* Rescan storage whenever you need an updated file list
+
+### Hidden Media
+
+Find media files that normal gallery apps might not show.
+
+MediaRescue looks for files affected by:
+
+* `.nomedia` files
+* Hidden directories
+* Media missing from normal MediaStore indexing
+* Unusual directory depths
+* Media stored outside common gallery locations
+
+Hidden Media helps uncover forgotten files without requiring users to manually search through hundreds of folders.
+
+### Advanced Scanning
+
+Optional Advanced Scanning provides deeper storage visibility for supported devices.
+
+With Shizuku, MediaRescue can scan restricted Android storage locations such as:
+
+* `Android/data`
+* `Android/obb`
+
+Advanced Scanning is designed for local, read-only file discovery and gives users more visibility into storage areas normally restricted by Android.
+
+### Intelligent Gallery
+
+Browse discovered files through organized views for:
+
+* Images
+* Videos
+* Audio
+* PDFs
+* Folders
+* Other supported files
+
+Switch between different viewing layouts and quickly browse large collections of discovered media.
 
 ### Built-in Media Previews
-- **Images** — pinch-to-zoom and pan viewer
-- **Videos** — smooth in-app playback
-- **PDFs** — native-style PDF rendering
-- **Audio** — in-app audio playback
 
-### Batch Operations
-- Multi-select files with a dedicated selection UI
-- Copy, move, delete, and rename multiple files at once
+Preview supported files without leaving MediaRescue.
 
-### Large Files Finder
-- Identify files that consume the most space
-- Filter by size and reclaim storage quickly
+* **Images** — zoom and pan viewer
+* **Videos** — in-app playback with fullscreen landscape support
+* **Audio** — in-app playback
+* **PDFs** — built-in PDF viewing
+* File details and storage location
+
+### Video & Audio Playback
+
+MediaRescue includes integrated playback controls for supported media.
+
+* Fullscreen landscape video playback
+* Playback position preservation
+* Automatic video repeat
+* Background playback
+* Android MediaSession integration
+* Notification playback controls
+* Screen stays awake during active video playback
+* Wake lock is released when playback is paused or moved to the background
+
+### File Browser
+
+Browse discovered files through their actual storage locations.
+
+View useful file information such as:
+
+* File name
+* Size
+* Type
+* Modified date
+* Full storage path
+* Parent folder
+
+### Large Files
+
+Find files consuming significant amounts of storage.
+
+* Identify large media and files
+* Browse storage-heavy content
+* Inspect file details
+* Take appropriate management actions to reclaim space
 
 ### Search
-- Fast search across scanned file names and paths
-- Locate files instantly without manual browsing
 
-### Folder Picker & Browser
-- Browse directories manually
-- Detailed file metadata: size, type, modified date, path
+Search across scanned files without manually browsing through folders.
 
-### Modern UI / UX
-- Light & dark themes with Material 3 design
-- Clean onboarding with permission guidance
+* Search file names
+* Search discovered paths
+* Quickly locate hard-to-find media
+* Works across the files discovered during scanning
+
+### File Selection & Management
+
+Select individual or multiple files and perform supported file operations.
+
+* Long-press selection
+* Multi-selection
+* Copy
+* Move
+* Delete
+* Rename
+* Rescue actions for selected files
+
+Advanced Scan supports multi-selection in Grid and Large Icons views.
+
+### Folder Browser
+
+Explore directories manually and understand where files are stored.
+
+Navigate through accessible storage and inspect files alongside their metadata and actual paths.
+
+### Storage Overview
+
+MediaRescue helps users understand what is occupying their storage by organizing discovered files and highlighting large content.
+
+### Themes & Modern UI
+
+* Material 3 interface
+* Light and dark themes
+* Clean onboarding
+* Permission guidance
+* Responsive layouts
+* Grid and Large Icons viewing modes
+* Designed for phones and different screen orientations
 
 ## Privacy First
-- **100% offline** — all scanning and processing happens locally
-- No network calls, no analytics, no cloud uploads, no tracking
-- Your files never leave your device
+
+MediaRescue is built around local processing and user control.
+
+* **Offline-first** — core scanning and file discovery happen locally
+* No account required
+* No cloud upload of your files
+* No need to send media to an external server
+* No analytics or tracking for file contents
+* Your personal files stay on your device
+
+MediaRescue exists to help you manage files already stored on your own device.
 
 ## Permissions
-- **MANAGE_EXTERNAL_STORAGE** (Android 11+) — "All files access" for full storage scanning
-- **READ_EXTERNAL_STORAGE** (Android 5–10) — read public media
-- **WRITE_EXTERNAL_STORAGE** (Android ≤ 9) — copy, move, delete files
+
+### Storage Access
+
+MediaRescue requests the storage access required for scanning and managing files on supported Android versions.
+
+* **All files access** — required on supported Android versions for comprehensive storage scanning and file management
+* **Read storage permissions** — used on older Android versions to discover accessible files
+* **Write storage permissions** — used on supported older Android versions for file management operations
+
+### Shizuku
+
+Shizuku is optional.
+
+When available and authorized by the user, Shizuku enables Advanced Scanning of restricted storage locations such as `Android/data` and `Android/obb`.
+
+MediaRescue does not require Shizuku for normal scanning.
 
 ## Open Source
-MediaRescue is free and open source under the MIT License. No ads, no in-app purchases, no data collection.
+
+MediaRescue is free and open source under the **MIT License**.
+
+There are:
+
+* No ads
+* No subscriptions
+* No in-app purchases
+* No account requirement
+* No cloud storage for user files
+
+The project is independently developed and focused on privacy, local storage discovery, and giving users better visibility and control over the files stored on their Android devices.

@@ -1,1 +1,1 @@
-Offline-first storage scanner & media manager for Android.
+MediaRescue: Deep File Finder - Find Files Your Phone Forgets
