@@ -170,23 +170,47 @@ Why this project matters: it's lightweight, open-source (MIT), and designed to r
 
 ## Installation
 
-MediaRescue is distributed through multiple channels — pick whichever works best for you.
-
-### From Release (APK)
-
-1. Go to the [GitHub Releases](https://github.com/everythingfreee/MediaRescue/releases) page.
-2. Download the latest `.apk` file.
-3. On your Android device, allow installation from unknown sources if prompted.
-4. Open the downloaded APK to install MediaRescue.
-
-> Tip: Always verify the APK checksum listed in the release notes to ensure authenticity.
-
+MediaRescue is available through multiple distribution channels. Choose whichever works best for you.
 
 ### From Google Play Store
 
-> Status: Closed Testing
+MediaRescue is publicly available on Google Play as a free, open-source Android application.
 
-MediaRescue will be published on the Google Play Store as a free, open-source app. Search for **"MediaRescue"** once it's live.
+[**Download MediaRescue from Google Play**](https://play.google.com/store/apps/details?id=com.shaheer.mediarescue.mediarescue)
+
+### From GitHub Releases
+
+You can download the latest official APK directly from GitHub Releases.
+
+1. Go to the [GitHub Releases](https://github.com/everythingfreee/MediaRescue/releases) page.
+2. Download the latest `.apk` file.
+3. On your Android device, allow installation from unknown sources if Android asks for permission.
+4. Open the downloaded APK to install MediaRescue.
+
+> **Tip:** Always verify the APK checksum listed in the release notes when available to confirm the integrity of the downloaded file.
+
+### From the Official Website
+
+The latest MediaRescue APK is also available from the official website:
+
+[**mediarescue.apk.com**](https://mediarescue.apk.com)
+
+### From APKPure
+
+MediaRescue is also available through APKPure:
+
+[**Download MediaRescue on APKPure**](https://apkpure.com/p/com.shaheer.mediarescue.mediarescue)
+
+### Distribution Status
+
+| Channel          | Status         |
+| ---------------- | -------------- |
+| Google Play      | ✅ Live         |
+| Official Website | ✅ Live         |
+| GitHub Releases  | ✅ Live         |
+| APKPure          | ✅ Live         |
+| Aptoide          | 🔜 Coming soon |
+| Softonic         | 🔜 Coming soon |
 
 ---
 
