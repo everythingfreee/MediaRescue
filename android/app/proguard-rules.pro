@@ -1,3 +1,16 @@
+# ── Flutter Framework Baseline Rules ──────────────────────────────────────────
+# Prevent R8 from optimizing out or breaking standard Flutter core classes
+-keep class io.flutter.app.** { *; }
+-keep class io.flutter.plugin.** { *; }
+-keep class io.flutter.util.** { *; }
+-keep class io.flutter.view.** { *; }
+-keep class io.flutter.embedding.** { *; }
+-keep class io.flutter.plugins.** { *; }
+
+# Keep attributes required for clear crash logging and recognizable stack traces
+-keepattributes SourceFile,LineNumberTable,Signature,InnerClasses,EnclosingMethod
+
+# ── Project Custom Rules ──────────────────────────────────────────────────────
 # Shizuku loads the advanced scanner user service and AIDL stubs by reflection.
 -keep class com.shaheer.mediarescue.mediarescue.AdvancedScannerUserService { public *; }
 -keep class com.shaheer.mediarescue.shizuku.** { *; }
