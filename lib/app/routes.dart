@@ -10,6 +10,7 @@ import '../screens/search/search_screen.dart';
 import '../screens/settings/settings_screen.dart';
 import '../screens/settings/about_screen.dart';
 import '../screens/settings/contact_screen.dart';
+import '../screens/settings/memory_cache_screen.dart';
 import '../screens/settings/privacy_policy_screen.dart';
 import '../screens/onboarding/permission_screen.dart';
 import '../screens/preview/immersive_media_viewer_screen.dart';
@@ -86,6 +87,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/privacy',
         builder: (context, state) => const PrivacyPolicyScreen(),
+      ),
+      // Debug-only developer inspector for the metadata cached for Memory
+      // notifications (reachable from Settings → Developer).
+      GoRoute(
+        path: '/memory-cache',
+        builder: (context, state) => const MemoryCacheScreen(),
       ),
       // Preview screens live outside the shell so they get full-screen
       // treatment (no bottom navigation bar) and stop playback when
@@ -198,13 +205,14 @@ final routerProvider = Provider<GoRouter>((ref) {
 });
 /// Builds the [ImmersiveMediaViewerScreen] from the route `extra` payload.
 /// Accepts either a single [FileItem] (e.g. the legacy image route) or a map
-/// with {item, allFiles} where allFiles may contain any mix of images/videos.
+/// with {item, allFiles} where allFiles may contain any mix of
+/// images/videos/audio — v1.0.9 also plays audio in the immersive feed.
 Widget _immersiveViewer(dynamic extra) {
   if (extra is Map<String, dynamic>) {
     final item = extra['item'] as dynamic;
     final allFiles = (extra['allFiles'] as List? ?? const []);
     final media = allFiles
-        .where((f) => f is FileItem && (f.isImage || f.isVideo))
+        .where((f) => f is FileItem && (f.isImage || f.isVideo || f.isAudio))
         .cast<FileItem>()
         .toList();
     final list = media.isEmpty && item is FileItem

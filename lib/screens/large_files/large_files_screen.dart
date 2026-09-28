@@ -9,6 +9,7 @@ import '../../models/file_item.dart';
 import '../../providers/scanner_provider.dart';
 import '../../providers/selection_provider.dart';
 import '../../providers/storage_provider.dart';
+import '../../services/haptics_service.dart';
 import '../../widgets/file_actions_sheet.dart';
 
 class LargeFilesScreen extends ConsumerWidget {
@@ -199,6 +200,8 @@ class LargeFilesScreen extends ConsumerWidget {
                       leading: Checkbox(
                         value: isSelected,
                         onChanged: (_) {
+                          // A checkbox has no ink splash → feedback fired here.
+                          HapticsService.selection();
                           ref.read(selectionProvider.notifier).toggle(item);
                         },
                       ),

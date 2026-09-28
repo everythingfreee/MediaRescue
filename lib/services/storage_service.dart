@@ -94,6 +94,23 @@ abstract class StorageService {
   /// fails or the platform API is unavailable — callers must treat that as
   /// "signal unknown", never as "hidden".
   Future<Set<String>?> getMediaStorePaths();
+
+  // ── Memory notifications (local metadata cache) ──────────────────────────
+
+  /// Persists the Memory metadata cache as JSON inside the app's private
+  /// files directory. Returns false when it could not be written.
+  Future<bool> saveMemoryCache(String json);
+
+  /// Loads the persisted Memory metadata cache. Returns an empty string when
+  /// no cache exists yet (never throws).
+  Future<String> loadMemoryCache();
+
+  // ── Anonymous installation tracking ───────────────────────────────────────
+
+  /// Non-identifying device information used by the anonymous installation
+  /// tracking: `androidVersion`, `androidSdk` and `deviceModel`.
+  /// Returns an empty map when unavailable.
+  Future<Map<String, Object?>> getDeviceInfo();
 }
 
 /// Represents a storage root (internal storage, SD card, etc.).
@@ -494,5 +511,48 @@ class MethodChannelStorageService implements StorageService {
       // Fall through — caller treats null as "unknown".
     }
     return null;
+  }
+
+  @override
+  Future<bool> saveMemoryCache(String json) async {
+    try {
+      final bool? result =
+          await _channel.invokeMethod('saveMemoryCache', {'json': json});
+      return result ?? false;
+    } on PlatformException catch (_) {
+      return false;
+    } on MissingPluginException catch (_) {
+      return false;
+    }
+  }
+
+  @override
+  Future<String> loadMemoryCache() async {
+    try {
+      final String? result =
+          await _channel.invokeMethod<String>('loadMemoryCache');
+      return result ?? '';
+    } on PlatformException catch (_) {
+      return '';
+    } on MissingPluginException catch (_) {
+      return '';
+    }
+  }
+
+  @override
+  Future<Map<String, Object?>> getDeviceInfo() async {
+    try {
+      final raw = await _channel.invokeMethod<dynamic>('getDeviceInfo');
+      if (raw is Map) {
+        return {
+          for (final entry in raw.entries) entry.key.toString(): entry.value,
+        };
+      }
+    } on PlatformException catch (_) {
+      // Fall through.
+    } on MissingPluginException catch (_) {
+      // Fall through.
+    }
+    return const {};
   }
 }

@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import 'link_service.dart';
+import 'memory_service.dart';
 import 'storage_service.dart';
 
 /// Client-side Firebase Cloud Messaging integration used to announce new
@@ -28,6 +31,14 @@ class NotificationService {
       FlutterLocalNotificationsPlugin();
   static final StorageService _storage = MethodChannelStorageService();
 
+  /// The single initialized local-notifications plugin instance.
+  ///
+  /// Other MediaRescue notification features (e.g. Memory notifications) reuse
+  /// this instance so the app only ever initializes the plugin once and only
+  /// ever installs one notification-tap handler.
+  static FlutterLocalNotificationsPlugin get localNotifications =>
+      _localNotifications;
+
   static const int _updateNotificationId = 1404;
 
   /// SharedPreferences key for the user's notification preference.
@@ -35,6 +46,17 @@ class NotificationService {
 
   static bool _initialized = false;
   static bool _subscribed = false;
+
+  /// Completes as soon as the local-notifications plugin has been initialized
+  /// (successfully or not). Memory notifications wait for it so a reminder that
+  /// is due during startup is never dropped.
+  static final Completer<void> _ready = Completer<void>();
+
+  /// Whether [initialize] has been started in this process run.
+  static bool get isInitializing => _initialized;
+
+  /// Completes when the local-notifications plugin is initialized.
+  static Future<void> get ready => _ready.future;
 
   /// True when the app was opened (or focused) by tapping an update
   /// notification. Used to avoid showing the update dialog at the same time.
@@ -60,6 +82,10 @@ class NotificationService {
       await _localNotifications.initialize(
         settings: initSettings,
         onDidReceiveNotificationResponse: (response) {
+          // Memory notifications (v1.0.9) open the corresponding media.
+          if (MemoryService.handleNotificationPayload(response.payload)) {
+            return;
+          }
           // Tapping a foreground update notification opens the Play Store.
           launchedFromUpdateNotification = true;
           LinkService.openPlayStore();
@@ -92,6 +118,25 @@ class NotificationService {
       }
     } catch (e) {
       debugPrint('MediaRescue: local notifications unavailable ($e)');
+    } finally {
+      // Memory notifications may wait for this: never leave them hanging.
+      if (!_ready.isCompleted) _ready.complete();
+    }
+
+    try {
+      // App launched by tapping a notification while it was terminated.
+      // Memory notifications (v1.0.9) open the cached media instead of the
+      // Play Store; anything else keeps the existing update behavior.
+      final launchDetails =
+          await _localNotifications.getNotificationAppLaunchDetails();
+      if (launchDetails?.didNotificationLaunchApp == true) {
+        final payload = launchDetails?.notificationResponse?.payload;
+        // Consumed exactly once: Android keeps re-reporting this launch intent
+        // when the task is brought back without a fresh tap.
+        await MemoryService.handleNotificationLaunchPayload(payload);
+      }
+    } catch (e) {
+      debugPrint('MediaRescue: notification launch details unavailable ($e)');
     }
 
     try {

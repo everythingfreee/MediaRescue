@@ -8,6 +8,7 @@ import '../../app/theme/app_spacing.dart';
 import '../../models/file_item.dart';
 import '../../providers/gallery_provider.dart';
 import '../../providers/storage_provider.dart';
+import '../../services/haptics_service.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/thumbnail_image.dart';
 import 'file_info_screen.dart';
@@ -468,7 +469,9 @@ class _GalleryGridTile extends ConsumerWidget {
 
   void _openFile(BuildContext context, WidgetRef ref, FileItem item) {
     if (item.isImage || item.isVideo) {
-      final media = allFiles.where((f) => f.isImage || f.isVideo).toList();
+      final media = allFiles
+          .where((f) => f.isImage || f.isVideo || f.isAudio)
+          .toList();
       context.push('/preview/media', extra: {'item': item, 'allFiles': media});
     } else if (item.isAudio) {
       context.push(
@@ -689,7 +692,9 @@ class _GalleryListTile extends ConsumerWidget {
 
   void _openFile(BuildContext context, WidgetRef ref, FileItem item) {
     if (item.isImage || item.isVideo) {
-      final media = allFiles.where((f) => f.isImage || f.isVideo).toList();
+      final media = allFiles
+          .where((f) => f.isImage || f.isVideo || f.isAudio)
+          .toList();
       context.push('/preview/media', extra: {'item': item, 'allFiles': media});
     } else if (item.isAudio) {
       context.push(
@@ -712,8 +717,11 @@ class _GalleryListTile extends ConsumerWidget {
       leading: isSelectionMode
           ? Checkbox(
               value: isSelected,
-              onChanged: (_) =>
-                  ref.read(galleryProvider.notifier).toggleSelection(item),
+              onChanged: (_) {
+                // A checkbox has no ink splash, so its feedback is fired here.
+                HapticsService.selection();
+                ref.read(galleryProvider.notifier).toggleSelection(item);
+              },
             )
           : ThumbnailImage(
               item: item,

@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'app_colors.dart';
 import 'app_radius.dart';
 import 'app_typography.dart';
+import 'haptic_splash_factory.dart';
 
 class AppTheme {
   static ThemeData get lightTheme {
     final textTheme = AppTypography.createTextTheme(Brightness.light);
     
-    return ThemeData(
+    final theme = ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
       scaffoldBackgroundColor: AppColors.lightBackground,
@@ -71,12 +72,19 @@ class AppTheme {
         space: 1,
       ),
     );
+
+    // App-wide haptic feedback for every Material tap target (buttons, icons,
+    // list tiles, chips …). The original splash factory is still used, so the
+    // visual design is unchanged.
+    return theme.copyWith(
+      splashFactory: HapticSplashFactory(theme.splashFactory),
+    );
   }
 
   static ThemeData get darkTheme {
     final textTheme = AppTypography.createTextTheme(Brightness.dark);
 
-    return ThemeData(
+    final theme = ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
       scaffoldBackgroundColor: AppColors.darkBackground,
@@ -139,6 +147,13 @@ class AppTheme {
         thickness: 1,
         space: 1,
       ),
+    );
+
+    // App-wide haptic feedback for every Material tap target (buttons, icons,
+    // list tiles, chips …). The original splash factory is still used, so the
+    // visual design is unchanged.
+    return theme.copyWith(
+      splashFactory: HapticSplashFactory(theme.splashFactory),
     );
   }
 }

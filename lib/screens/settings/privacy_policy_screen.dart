@@ -58,6 +58,20 @@ class PrivacyPolicyScreen extends StatelessWidget {
             body:
                 'MediaRescue checks Google Play for updates via official APIs. Google Play manages download and installation.',
           ),
+          const SizedBox(height: AppSpacing.md),
+          const _PolicyCard(
+            icon: HugeIcons.strokeRoundedAnalytics01,
+            title: 'Anonymous Usage & Diagnostics',
+            body:
+                'MediaRescue periodically records non-identifying telemetry (anonymous installation ID, app/Android version, device model, last app open time, and FCM token) to Firebase Firestore for diagnostics and installation counts. No account is required and no photos, videos, audio, file paths, or documents are ever collected.',
+          ),
+          const SizedBox(height: AppSpacing.md),
+          const _PolicyCard(
+            icon: HugeIcons.strokeRoundedClock01,
+            title: 'Local Memory Reminders',
+            body:
+                'Anniversary reminders for hidden media operate 100% locally on your device using cached metadata. Media files and thumbnails remain strictly in private storage and are never uploaded.',
+          ),
           const SizedBox(height: AppSpacing.xl),
           AppButton(
             label: 'Read Full Privacy Policy Online',

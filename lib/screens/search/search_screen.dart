@@ -51,7 +51,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   void _openFile(BuildContext context, dynamic item, List<dynamic> results) {
     if (item.isImage || item.isVideo) {
-      final media = results.where((f) => f.isImage || f.isVideo).toList();
+      final media = results
+          .where((f) => f.isImage || f.isVideo || f.isAudio)
+          .toList();
       context.push('/preview/media', extra: {'item': item, 'allFiles': media});
     } else if (item.isAudio) {
       final audios = results.where((f) => f.isAudio).toList();

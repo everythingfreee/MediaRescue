@@ -394,7 +394,8 @@ mediarescue/
 │   │   ├── app.dart                          # Root MaterialApp.router, theme mode notifier, global router/nav keys
 │   │   ├── routes.dart                       # go_router route table (shell tabs + full-screen routes: large-files, hidden-media, previews, settings pages)
 │   │   └── theme/
-│   │       └── app_theme.dart                # Material 3 light/dark theme definitions
+│   │       ├── app_theme.dart                # Material 3 light/dark theme definitions
+│   │       └── haptic_splash_factory.dart    # Theme-level splash factory that adds app-wide haptic feedback
 │   ├── models/
 │   │   ├── file_item.dart                    # FileItem — file & folder data model (path, name, size, type, MIME, modified)
 │   │   ├── hidden_media.dart                 # HiddenMediaReason (5 signals) + HiddenMediaItem + combined-evidence classifier
@@ -440,6 +441,7 @@ mediarescue/
 │   │       ├── settings_screen.dart          # Settings: rescan, rescue destinations, notifications, navigation links
 │   │       ├── about_screen.dart             # About page (version, GitHub link)
 │   │       ├── contact_screen.dart           # Contact page (email/GitHub/Issues)
+│   │       ├── memory_cache_screen.dart      # Developer inspector for the locally cached Memory metadata
 │   │       └── privacy_policy_screen.dart    # In-app privacy policy summary
 │   ├── services/
 │   │   ├── storage_service.dart              # StorageService abstraction + MethodChannel implementation
@@ -447,7 +449,10 @@ mediarescue/
 │   │   ├── notification_service.dart         # FCM listeners, topic subscription, foreground notifications
 │   │   ├── update_service.dart               # Google Play In-App Update check (Flexible update flow)
 │   │   ├── link_service.dart                 # URL/email launch helpers
-│   │   └── background_media_service.dart     # MediaSession bridge and playback settings
+│   │   ├── background_media_service.dart     # MediaSession bridge and playback settings
+│   │   ├── haptics_service.dart              # User-controlled haptic feedback with intensity settings
+│   │   ├── memory_service.dart               # Local Hidden Media memory reminders & anniversary notifications
+│   │   └── tracking_service.dart             # Offline-first anonymous installation & diagnostics telemetry (Firestore)
 │   └── widgets/
 │       ├── file_actions_sheet.dart           # Shared file-actions sheet (Information / Open Location / Preview)
 │       ├── media_info_sheet.dart             # Detailed metadata bottom sheet (resolution, duration, bitrate…)
@@ -455,7 +460,9 @@ mediarescue/
 │       ├── smart_filter_sheet.dart           # Smart Filters bottom-sheet UI (chips, radios, storage checkboxes; injectable provider)
 │       └── thumbnail_image.dart              # Cached media thumbnail widget
 ├── test/
-│   └── widget_test.dart                      # Widget tests
+│   ├── widget_test.dart                      # Widget tests
+│   ├── haptics_and_playback_test.dart        # Haptic feedback + background playback payload regression tests
+│   └── memory_notification_test.dart         # Memory cache, random test picks and notification tap regression tests
 ├── fastlane/metadata/                        # Store metadata & screenshots
 ├── pubspec.yaml                              # Dependencies & app metadata (version 1.0.5+6)
 ├── analysis_options.yaml                     # Lint rules (flutter_lints)
@@ -567,6 +574,56 @@ git push --set-upstream origin feat/your-feature
 ---
 
 ## Changelog
+### v1.0.9 — Immersive Audio & Auto-Scroll, Memories, Haptics & Diagnostics
+
+**✨ New Features**
+- **Immersive Audio Playback**: Audio files are now integrated directly into the unified Immersive Media Player feed alongside images and videos, complete with dedicated artwork, waveform card, and full gesture controls.
+- **Auto-scroll Feed**: Toggle auto-scroll from the long-press middle screen menu. Automatically advances to the next compatible audio or video item when playback finishes; images remain static.
+- **Audio Transitions & Fades**: Smooth volume fade-down and fade-in between tracks during manual swiping to eliminate clicks, pops, and abrupt cuts.
+- **Edge-Hold Playback Speed Controls**: 20 ms confirmation delay before activating temporary 2× speed to eliminate accidental triggers, accompanied by soft haptic feedback.
+- **User-Controlled Haptic Feedback**: Settings toggle for haptics and adjustable intensity (Light, Medium, Strong) applied to speed triggers and buttons across the app.
+- **Advanced Scan Preview Cache Indexing Protection**: Automatically creates and maintains `.nomedia` in `/storage/emulated/0/Android/media/com.shaheer.mediarescue.mediarescue/advanced_preview_cache/` to shield preview thumbnails from Android MediaStore indexing.
+- **Local Memory Anniversary Notifications**: Reminders for hidden media files taken on this date in previous years using locally cached metadata on a dedicated channel (`mediarescue_memories`) with custom sound and direct player opening. Fully offline with zero cloud storage.
+- **Anonymous Installation & Activity Diagnostics**: Offline-first, privacy-compliant installation telemetry using Firebase Cloud Firestore. Syncs at most once every ~24 hours with a random installation UUID, device model, and OS version without collecting personal data, media, or file paths.
+- **Developer Memory Cache Inspector** (debug builds only): Settings → Developer lists the exact metadata cached locally for Memories — path, media type, creation/caching dates, cached artwork and notification bookkeeping — alongside a random test notification and a one-tap *Open media* check of the whole notification pipeline.
+
+**🛠️ Fixes**
+- **Background Playback on Large Feeds**: The playlist handed to the Android foreground playback service is now bounded (`maxQueueEntries = 120`, native cap 200) around the current item instead of being sent whole, which fixes the `TransactionTooLargeException` that killed background audio/video for large folders. A refused service start is reported (`start()` returns `bool`) instead of throwing into the UI.
+- **App-Wide Haptics**: Haptic feedback now runs through a theme-level splash factory, so every button, icon button, list tile and toggle in the app vibrates — not just the onboarding permission button. Switches, checkboxes and long-press actions fire their own feedback, and disabling haptics in Settings silences all of it.
+- **Smooth Auto-Scroll**: Auto-scroll slides to the next item with an animated page transition instead of jumping, and intermediate pages are skipped so only the landing item starts a player.
+- **`.nomedia` Timing**: the Advanced Scan preview cache writes `.nomedia` after the scan/preview cache is populated instead of pre-creating it, so no empty marker appears before the folder exists.
+- **Tapped Memory Notifications Now Play Their Media**: a notification tap rebuilt its `FileItem` without a media type, which made the immersive viewer render an empty black page with just the file name. The cached media type (with an extension fallback) is now applied, and an unrecognised item shows a clear "Unable to preview this file." message instead of a silent black screen. The player also waits for the navigator, so a cold start no longer drops the tap.
+- **No More Notification Replay After a Restart**: each Memory notification carries a unique nonce and its payload is consumed exactly once (in memory and natively), so Android replaying the launch intent when the app is reopened can no longer reopen the same media by itself.
+- **Random Test Notifications**: the debug "Send test Memory notification" button now picks a **random** cached media file (images, videos and audio alike, never the same pick twice in a row) instead of always reporting one fixed entry, and Memory notifications wait for the local-notifications plugin during startup so a reminder due at launch is not dropped.
+
+**🛠️ Modified Files**
+- `android/app/src/main/kotlin/com/shaheer/mediarescue/mediarescue/AdvancedScannerUserService.kt` – `.nomedia` preservation on preview cache initialization.
+- `android/app/src/main/kotlin/com/shaheer/mediarescue/mediarescue/MainActivity.kt` – native channels for memory cache persistence and non-identifying device telemetry.
+- `lib/app/routes.dart` – routes audio files to the immersive player feed while preserving dedicated player fallback; adds the Developer Memory cache route.
+- `lib/app/theme/app_theme.dart` – both themes use the haptic splash factory.
+- `lib/main.dart` – startup initialization of haptics, local memories, and anonymous diagnostics.
+- `lib/providers/advanced_scan_provider.dart` – client-side preview cache `.nomedia` marker enforcement.
+- `lib/providers/hidden_media_provider.dart` – triggers local memory metadata synchronization upon hidden media discovery.
+- `lib/screens/browse/browse_screen.dart` – feeds audio tracks into immersive media viewer context.
+- `lib/screens/gallery/gallery_screen.dart` – feeds audio tracks into immersive media viewer context.
+- `lib/screens/preview/immersive_media_viewer_screen.dart` – auto-scroll toggle, volume fading, 20 ms haptic speed delay, unified audio playback page and a graceful message for unsupported items.
+- `lib/screens/search/search_screen.dart` – feeds audio tracks into immersive media viewer context.
+- `lib/screens/settings/privacy_policy_screen.dart` – telemetry transparency summary and local memory guarantees.
+- `lib/screens/settings/settings_screen.dart` – user haptic controls (toggle and intensity selector) and the debug-only Developer section (test notification + Memory cache inspector).
+- `lib/services/notification_service.dart` – handles memory notification taps and cold launches without replaying them.
+- `lib/services/storage_service.dart` – memory cache persistence and device info APIs.
+- `lib/widgets/app_button.dart` – haptic feedback integration for button taps.
+- `pubspec.yaml` – added `cloud_firestore` dependency.
+
+**📦 Added Files**
+- `lib/app/theme/haptic_splash_factory.dart` – theme-level splash factory that adds haptic feedback to every Material tap target.
+- `lib/screens/settings/memory_cache_screen.dart` – Developer inspector for the locally cached Memory metadata (paths, media types, dates, artwork, notification bookkeeping) with a one-tap "Open media" check of the notification pipeline.
+- `lib/services/haptics_service.dart` – centralized haptics coordinator with user preference persistence.
+- `lib/services/memory_service.dart` – local anniversary notifications, caching, thumbnail preparation, media reopening, random debug test picks, nonce-tagged single-consume notification payloads and fully typed re-open payloads.
+- `lib/services/tracking_service.dart` – offline-first anonymous installation tracking and diagnostics using Firestore.
+- `test/haptics_and_playback_test.dart` – regression tests for app-wide haptics and the bounded background playback payload.
+- `test/memory_notification_test.dart` – regression tests for the Memory cache inspector, random test picks and one-shot notification payload handling.
+
 ### v1.0.8 — Media Controls, Background Playback and Advanced Scan Reliability
 
 **✨ New Features**

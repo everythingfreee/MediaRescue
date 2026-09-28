@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/file_item.dart';
 import '../models/hidden_media.dart';
 import '../models/smart_filter.dart';
+import '../services/memory_service.dart';
 import 'filter_provider.dart';
 import 'gallery_provider.dart';
 import 'scanner_provider.dart';
@@ -108,6 +109,10 @@ final hiddenMediaItemsProvider =
 
       // Largest first, mirroring the Large Files screen.
       items.sort((a, b) => b.item.size.compareTo(a.item.size));
+
+      // Asynchronously sync items to local Memory cache for anniversary notifications.
+      MemoryService.syncFromHiddenMedia(items);
+
       return items;
     });
 

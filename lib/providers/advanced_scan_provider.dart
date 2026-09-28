@@ -151,6 +151,29 @@ class AdvancedScanController extends Notifier<AdvancedScanState> {
     }
   }
 
+  /// Ensures the Advanced Scan preview cache carries a `.nomedia` marker. The
+  /// marker stops Android's MediaStore (and therefore gallery / media apps) from
+  /// indexing the cached preview media. Creating it is idempotent and best
+  /// effort — a failure here never affects the Advanced Scanner or any cached
+  /// preview.
+  ///
+  /// It is called when a scan **completes** (see [_onEvent]) and never upfront,
+  /// so the marker is not created before the scan that fills the cache.
+  static Future<void> ensurePreviewCacheNomedia() async {
+    try {
+      final directory = Directory(previewCachePath);
+      if (!await directory.exists()) {
+        await directory.create(recursive: true);
+      }
+      final marker = File('$previewCachePath/.nomedia');
+      if (!await marker.exists()) {
+        await marker.writeAsString('', flush: true);
+      }
+    } catch (_) {
+      // Cache directory unavailable — nothing to do; scanning still works.
+    }
+  }
+
   static String _fileTypeFor(String name) {
     final extension = name.contains('.')
         ? name.split('.').last.toLowerCase()
@@ -426,6 +449,9 @@ class AdvancedScanController extends Notifier<AdvancedScanState> {
                 : 'Scan completed — $total entries found.',
           );
         }
+        // The preview cache only gets its `.nomedia` marker once the scan is
+        // over (see ensurePreviewCacheNomedia) — never upfront.
+        unawaited(ensurePreviewCacheNomedia());
 
       case 'error':
         final message =

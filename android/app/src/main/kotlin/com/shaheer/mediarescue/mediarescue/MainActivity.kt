@@ -18,6 +18,7 @@ import android.app.NotificationManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.util.Log
 import android.provider.MediaStore
 import android.provider.Settings
 import android.provider.DocumentsContract
@@ -49,6 +50,16 @@ class MainActivity : FlutterActivity() {
     private var advancedScanSink: EventChannel.EventSink? = null
 
     private val REQUEST_CODE_STORAGE_PERMISSION = 2001
+
+    private val TAG = "MediaRescueMain"
+
+    /**
+     * Hard cap for the playlist forwarded to [MediaPlaybackService].
+     *
+     * Keeping the payload small is what prevents the Binder from rejecting the
+     * service start with a `TransactionTooLargeException`.
+     */
+    private val MAX_QUEUE_ENTRIES = 200
 
     private val executor = Executors.newSingleThreadExecutor()
     private val scanning = AtomicBoolean(false)
@@ -101,6 +112,9 @@ class MainActivity : FlutterActivity() {
                     "saveScanData" -> handleSaveScanData(call, result)
                     "loadScanData" -> handleLoadScanData(result)
                     "clearScanData" -> handleClearScanData(result)
+                    "saveMemoryCache" -> handleSaveMemoryCache(call, result)
+                    "loadMemoryCache" -> handleLoadMemoryCache(result)
+                    "getDeviceInfo" -> handleGetDeviceInfo(result)
                     else -> result.notImplemented()
                 }
             }
@@ -108,48 +122,7 @@ class MainActivity : FlutterActivity() {
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, MEDIA_PLAYBACK_CHANNEL)
             .setMethodCallHandler { call, result ->
                 when (call.method) {
-                    "startBackgroundPlayback" -> {
-                        val path = call.argument<String>("path")
-                        if (path == null) {
-                            result.error("INVALID_ARGUMENT", "A media path is required.", null)
-                            return@setMethodCallHandler
-                        }
-                        val intent = Intent(this, MediaPlaybackService::class.java).apply {
-                            action = MediaPlaybackService.ACTION_START
-                            putExtra(MediaPlaybackService.EXTRA_PATH, path)
-                            putExtra(
-                                MediaPlaybackService.EXTRA_TITLE,
-                                call.argument<String>("title") ?: "MediaRescue",
-                            )
-                            putExtra(
-                                MediaPlaybackService.EXTRA_POSITION_MS,
-                                call.argument<Int>("positionMs") ?: 0,
-                            )
-                            putExtra(
-                                MediaPlaybackService.EXTRA_PLAYING,
-                                call.argument<Boolean>("playing") ?: true,
-                            )
-                            putStringArrayListExtra(
-                                MediaPlaybackService.EXTRA_PATHS,
-                                ArrayList(call.argument<List<String>>("paths") ?: emptyList()),
-                            )
-                            putStringArrayListExtra(
-                                MediaPlaybackService.EXTRA_TITLES,
-                                ArrayList(call.argument<List<String>>("titles") ?: emptyList()),
-                            )
-                            putExtra(MediaPlaybackService.EXTRA_INDEX, call.argument<Int>("index") ?: 0)
-                            putExtra(
-                                MediaPlaybackService.EXTRA_NOTIFICATION_ENABLED,
-                                call.argument<Boolean>("notificationEnabled") ?: true,
-                            )
-                        }
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                            startForegroundService(intent)
-                        } else {
-                            startService(intent)
-                        }
-                        result.success(null)
-                    }
+                    "startBackgroundPlayback" -> handleStartBackgroundPlayback(call, result)
                     "getPlaybackState" -> result.success(MediaPlaybackService.snapshot())
                     "stopBackgroundPlayback" -> {
                         startService(
@@ -248,6 +221,70 @@ class MainActivity : FlutterActivity() {
      * even when the app is in background and FCM displays the notification
      * before Flutter initializes.
      */
+    /**
+     * Starts [MediaPlaybackService] for the media the Dart side handed over.
+     *
+     * The playlist is a bounded window (`MAX_QUEUE_ENTRIES`) so the `Intent`
+     * stays far below the Binder transaction limit — an oversized extra is what
+     * used to make Android reject the start with a `TransactionTooLargeException`
+     * and break background playback for large feeds. A refused start is reported
+     * to Dart as a failed call instead of escaping as an unhandled exception.
+     */
+    private fun handleStartBackgroundPlayback(call: MethodCall, result: MethodChannel.Result) {
+        val path = call.argument<String>("path")
+        if (path.isNullOrEmpty()) {
+            result.error("INVALID_ARGUMENT", "A media path is required.", null)
+            return
+        }
+        try {
+            val paths = call.argument<List<String>>("paths")
+                .orEmpty()
+                .filter { it.isNotEmpty() }
+                .take(MAX_QUEUE_ENTRIES)
+            val titles = call.argument<List<String>>("titles")
+                .orEmpty()
+                .filter { it.isNotEmpty() }
+                .take(MAX_QUEUE_ENTRIES)
+
+            val intent = Intent(this, MediaPlaybackService::class.java).apply {
+                action = MediaPlaybackService.ACTION_START
+                putExtra(MediaPlaybackService.EXTRA_PATH, path)
+                putExtra(
+                    MediaPlaybackService.EXTRA_TITLE,
+                    call.argument<String>("title") ?: "MediaRescue",
+                )
+                putExtra(
+                    MediaPlaybackService.EXTRA_POSITION_MS,
+                    call.argument<Int>("positionMs") ?: 0,
+                )
+                putExtra(
+                    MediaPlaybackService.EXTRA_PLAYING,
+                    call.argument<Boolean>("playing") ?: true,
+                )
+                putStringArrayListExtra(MediaPlaybackService.EXTRA_PATHS, ArrayList(paths))
+                putStringArrayListExtra(MediaPlaybackService.EXTRA_TITLES, ArrayList(titles))
+                putExtra(MediaPlaybackService.EXTRA_INDEX, call.argument<Int>("index") ?: 0)
+                putExtra(
+                    MediaPlaybackService.EXTRA_NOTIFICATION_ENABLED,
+                    call.argument<Boolean>("notificationEnabled") ?: true,
+                )
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(intent)
+            } else {
+                startService(intent)
+            }
+            result.success(true)
+        } catch (t: Throwable) {
+            Log.e(TAG, "background playback could not start", t)
+            result.error(
+                "PLAYBACK_START_FAILED",
+                t.message ?: "Background playback could not be started.",
+                null,
+            )
+        }
+    }
+
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channelId = "mediarescue_updates"
@@ -671,6 +708,65 @@ class MainActivity : FlutterActivity() {
             } catch (e: Exception) {
                 runOnUiThread { result.success(false) }
             }
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    //  MEMORY NOTIFICATIONS — local metadata cache + device info
+    // ═══════════════════════════════════════════════════════════════════════════
+    //
+    // The Memory feature only ever stores locally cached metadata about the
+    // user's own hidden media (path, creation date, media type, small
+    // thumbnail and an identifier). Nothing is uploaded anywhere. The cache
+    // lives next to the saved scan data inside the app's private files
+    // directory so it survives app restarts.
+
+    private fun getMemoryCacheFile(): File {
+        return File(filesDir, "memory_cache.json")
+    }
+
+    private fun handleSaveMemoryCache(call: MethodCall, result: MethodChannel.Result) {
+        val json = call.argument<String>("json") ?: ""
+        executor.execute {
+            try {
+                FileOutputStream(getMemoryCacheFile()).use { it.write(json.toByteArray()) }
+                runOnUiThread { result.success(true) }
+            } catch (e: Exception) {
+                runOnUiThread { result.success(false) }
+            }
+        }
+    }
+
+    private fun handleLoadMemoryCache(result: MethodChannel.Result) {
+        executor.execute {
+            try {
+                val file = getMemoryCacheFile()
+                runOnUiThread {
+                    result.success(if (file.exists()) file.readText() else "")
+                }
+            } catch (e: Exception) {
+                // A missing / unreadable cache is never an error — the caller
+                // simply starts from an empty cache.
+                runOnUiThread { result.success("") }
+            }
+        }
+    }
+
+    /**
+     * Non-identifying device information used by the anonymous installation
+     * tracking (Android version + device model). No personal data is read.
+     */
+    private fun handleGetDeviceInfo(result: MethodChannel.Result) {
+        try {
+            result.success(
+                mapOf(
+                    "androidVersion" to Build.VERSION.RELEASE,
+                    "androidSdk" to Build.VERSION.SDK_INT,
+                    "deviceModel" to Build.MODEL,
+                ),
+            )
+        } catch (e: Exception) {
+            result.success(emptyMap<String, Any>())
         }
     }
 

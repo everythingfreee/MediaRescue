@@ -106,8 +106,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen>
       return;
     }
     final item = _audios[_currentIndex];
-    _backgroundPlaybackActive = true;
-    await BackgroundMediaService.start(
+    final started = await BackgroundMediaService.start(
       path: item.path,
       title: item.name,
       position: controller.value.position,
@@ -119,6 +118,10 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen>
         'media_playback_notifications_enabled',
       ),
     );
+    // Playback is handed over only when the background service really started;
+    // otherwise the in-app player keeps running instead of going silent.
+    if (!started || !mounted) return;
+    _backgroundPlaybackActive = true;
     await controller.pause();
   }
 

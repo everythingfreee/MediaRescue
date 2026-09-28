@@ -64,6 +64,14 @@ class AdvancedScannerUserService : IAdvancedScanner.Stub() {
         /** Entries per onBatch callback (keeps each IPC parcel small). */
         private const val BATCH_SIZE = 200
 
+        /**
+         * App-owned preview cache used by the Advanced Scanner. It lives under
+         * Android/media so it stays reachable after a reboot, and it carries a
+         * `.nomedia` marker so MediaStore / gallery apps never index it.
+         */
+        private const val PREVIEW_CACHE_DIR =
+            "/storage/emulated/0/Android/media/com.shaheer.mediarescue.mediarescue/advanced_preview_cache"
+
         /** Minimum interval between onProgress callbacks (IPC throttling). */
         private const val PROGRESS_INTERVAL_MS = 500L
 
@@ -155,6 +163,28 @@ class AdvancedScannerUserService : IAdvancedScanner.Stub() {
         }
     }
 
+    /**
+     * Writes the `.nomedia` marker into the Advanced Scan preview cache so
+     * Android's MediaStore never indexes cached preview media. Only the
+     * app-owned preview cache is touched, and a failure is ignored: the marker
+     * is a convenience, never a requirement for the copy or the scan.
+     *
+     * Called when a scan finishes (see [runScan]) — deliberately never before,
+     * so the cache directory stays marker-free until the scan it belongs to is
+     * complete.
+     */
+    private fun ensureNomediaMarker(directory: File?) {
+        val dir = directory ?: return
+        if (dir.absolutePath != PREVIEW_CACHE_DIR) return
+        try {
+            if (!dir.exists()) dir.mkdirs()
+            val marker = File(dir, ".nomedia")
+            if (!marker.exists()) marker.createNewFile()
+        } catch (_: Throwable) {
+            // Ignore — MediaStore indexing is best effort.
+        }
+    }
+
     /** Reserved by Shizuku (16777114): clean up when the service is removed. */
     override fun destroy() {
         executor.shutdownNow()
@@ -238,6 +268,11 @@ class AdvancedScannerUserService : IAdvancedScanner.Stub() {
             safeCallback(callback) { it.onScanError(ERROR_INTERNAL, "The scan stopped unexpectedly.") }
         } finally {
             scanning.set(false)
+            // The `.nomedia` marker is written here — when the scan is over —
+            // instead of at the start of it (or per copied file). Everything the
+            // scan copied lives in the preview cache, so one marker at the end is
+            // enough to keep MediaStore / gallery apps away from it.
+            ensureNomediaMarker(File(PREVIEW_CACHE_DIR))
         }
     }
 

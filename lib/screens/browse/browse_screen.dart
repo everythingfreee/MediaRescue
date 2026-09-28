@@ -9,6 +9,7 @@ import '../../app/theme/app_typography.dart';
 import '../../models/file_item.dart';
 import '../../providers/browser_provider.dart';
 import '../../providers/selection_provider.dart';
+import '../../services/haptics_service.dart';
 import '../../widgets/selection_bottom_bar.dart';
 import '../../widgets/thumbnail_image.dart';
 
@@ -215,7 +216,9 @@ class _FileListTile extends ConsumerWidget {
     if (item.isDirectory) {
       ref.read(currentPathProvider.notifier).navigateTo(item.name);
     } else if (item.isImage || item.isVideo) {
-      final media = allFiles.where((f) => f.isImage || f.isVideo).toList();
+      final media = allFiles
+          .where((f) => f.isImage || f.isVideo || f.isAudio)
+          .toList();
       context.push('/preview/media', extra: {'item': item, 'allFiles': media});
     } else if (item.isAudio) {
       context.push('/preview/audio', extra: {'item': item, 'allFiles': allFiles});
@@ -239,7 +242,11 @@ class _FileListTile extends ConsumerWidget {
       leading: isSelectionMode && !item.isDirectory
           ? Checkbox(
               value: isSelected,
-              onChanged: (_) => ref.read(selectionProvider.notifier).toggle(item),
+              onChanged: (_) {
+                // A checkbox has no ink splash, so its feedback is fired here.
+                HapticsService.selection();
+                ref.read(selectionProvider.notifier).toggle(item);
+              },
             )
           : ThumbnailImage(item: item, width: 44, height: 44, borderRadius: AppRadius.sm),
       title: Text(

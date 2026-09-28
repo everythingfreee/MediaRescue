@@ -140,7 +140,12 @@ class MediaPlaybackService : Service() {
                 updateNotification()
             }
             newPlayer.prepareAsync()
-            if (notificationEnabled) startAsForeground()
+            // A service started with startForegroundService() must call
+            // startForeground() within a few seconds, otherwise Android kills the
+            // process (and kills background playback with it). The service
+            // therefore always enters the foreground here; when the user turned
+            // playback notifications off only a minimal notification is shown.
+            startAsForeground(minimal = !notificationEnabled)
         } catch (_: Exception) {
             stopPlayback()
         }
@@ -162,13 +167,31 @@ class MediaPlaybackService : Service() {
         } catch (_: IllegalStateException) {}
     }
 
-    private fun startAsForeground() {
-        val notification = buildNotification()
+    private fun startAsForeground(minimal: Boolean = false) {
+        val notification = if (minimal) buildMinimalNotification() else buildNotification()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(NOTIFICATION_ID, notification, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
         } else {
             startForeground(NOTIFICATION_ID, notification)
         }
+    }
+
+    /**
+     * Notification required by the platform when the user turned playback
+     * notifications off: a foreground service must always show one, so a
+     * minimal, control-free notification keeps background playback alive.
+     */
+    private fun buildMinimalNotification(): Notification {
+        val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
+        val contentIntent = PendingIntent.getActivity(this, 2302, launchIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        return NotificationCompat.Builder(this, CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.ic_media_play)
+            .setContentTitle("MediaRescue")
+            .setContentText("Playing in the background")
+            .setContentIntent(contentIntent)
+            .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .build()
     }
 
     private fun stopPlayback() {

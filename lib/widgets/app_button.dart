@@ -93,6 +93,8 @@ class AppButton extends StatelessWidget {
         ),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
+          // Haptic feedback is provided app-wide by the theme's splash factory
+          // (see HapticSplashFactory), so no explicit call is needed here.
           onTap: isLoading ? null : onPressed,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),

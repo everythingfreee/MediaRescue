@@ -42,6 +42,7 @@ dependencies:
   flutter_pdfview: ^1.4.5
   firebase_core: ^4.14.0
   firebase_messaging: ^16.6.0
+  cloud_firestore: ^6.10.0
   in_app_update: ^4.2.5
   url_launcher: ^6.3.2
   package_info_plus: ^8.1.1

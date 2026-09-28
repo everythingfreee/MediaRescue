@@ -15,12 +15,21 @@ import '../../providers/storage_provider.dart';
 import '../../widgets/media_info_sheet.dart';
 import '../../widgets/thumbnail_image.dart';
 import '../../services/background_media_service.dart';
+import '../../services/haptics_service.dart';
 import '../../utils/screen_wake.dart';
 
 const List<String> _shortMonths = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
 ];
+
+/// `mm:ss` (or `h:mm:ss`) clock used by the audio page.
+String _formatAudioClock(Duration d) {
+  final h = d.inHours;
+  final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
+  final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+  return h > 0 ? '$h:$m:$s' : '$m:$s';
+}
 
 /// Immersive, vertically scrollable media preview used everywhere the app
 /// displays images or videos. Combines quick browsing (TikTok/Reels style
@@ -50,6 +59,24 @@ class _ImmersiveMediaViewerScreenState
   /// the edge-hold temporary 2× speed gesture.
   static const double _edgeBoostZoneWidth = 48;
 
+  /// Confirmation delay before a side hold activates the temporary playback
+  /// speed. Short enough to feel instant, long enough that an ordinary tap
+  /// near the edge never flashes the speed mode.
+  static const Duration _edgeBoostDelay = Duration(milliseconds: 35);
+
+  /// Length of the short volume fade used when switching between videos/audio.
+  static const Duration _audioFadeDuration = Duration(milliseconds: 180);
+
+  /// Length of one page of an Auto-scroll slide.
+  static const int _autoScrollPageDurationMs = 300;
+
+  /// Longest Auto-scroll slide — used when several pages are skipped at once so
+  /// the animation stays swipe-like instead of feeling like a slow crawl.
+  static const int _autoScrollMaxDurationMs = 520;
+
+  /// Steps used for the fade ramp (kept small — this runs during navigation).
+  static const int _fadeSteps = 6;
+
   /// One-time player tour persistence key (stored via native preferences).
   static const String _tourSeenPrefKey = 'player_tour_seen';
 
@@ -65,6 +92,25 @@ class _ImmersiveMediaViewerScreenState
   double _selectedSpeed = 1.0;
   bool _edgeBoostActive = false;
   final Set<int> _edgeActivePointers = {};
+  Timer? _edgeBoostTimer;
+
+  // ── Auto-scroll state ────────────────────────────────────────────────────
+  //
+  // When enabled, a video/audio item that reaches its end automatically moves
+  // on to the next compatible (video/audio) item. Images never auto-advance —
+  // they always stay manual. Session-scoped on purpose.
+  bool _autoScrollEnabled = false;
+
+  /// Guards the end-of-playback handler so a single completion is processed
+  /// once (listeners fire many times while parked at the end of a track).
+  bool _playbackCompletionHandled = false;
+
+  /// Target page of an in-flight Auto-scroll transition (`null` when idle).
+  ///
+  /// While it is set, the intermediate pages the [PageView] reports during the
+  /// slide are ignored, so one smooth transition never builds (and disposes) a
+  /// throwaway player for every page it passes.
+  int? _autoAdvanceTarget;
 
   // ── UI state ─────────────────────────────────────────────────────────────
   bool _controlsVisible = true;
@@ -100,6 +146,12 @@ class _ImmersiveMediaViewerScreenState
 
   bool get _isCurrentVideo => _items[_currentIndex].isVideo;
 
+  bool get _isCurrentAudio => _items[_currentIndex].isAudio;
+
+  /// True when the current item is played through the shared controller —
+  /// videos and audio files both use it (audio simply renders no video frame).
+  bool get _isCurrentPlayable => _isCurrentVideo || _isCurrentAudio;
+
   @override
   void initState() {
     super.initState();
@@ -107,7 +159,7 @@ class _ImmersiveMediaViewerScreenState
     _items = List<FileItem>.from(widget.items);
     _currentIndex = widget.initialIndex.clamp(0, _items.length - 1);
     _pageController = PageController(initialPage: _currentIndex);
-    if (_items[_currentIndex].isVideo) {
+    if (_items[_currentIndex].isVideo || _items[_currentIndex].isAudio) {
       _initVideo(_currentIndex);
       _maybeShowFirstTimeTour();
     }
@@ -159,7 +211,8 @@ class _ImmersiveMediaViewerScreenState
     _controlsTimer?.cancel();
     _flashTimer?.cancel();
     _playPauseTimer?.cancel();
-    _disposeVideo();
+    _edgeBoostTimer?.cancel();
+    _disposeVideo(fade: false);
     _pageController.dispose();
     super.dispose();
   }
@@ -185,10 +238,10 @@ class _ImmersiveMediaViewerScreenState
       return;
     }
     final item = _items[_currentIndex];
-    final playlist = _items.where((file) => file.isVideo).toList();
+    final playlist =
+        _items.where((file) => file.isVideo || file.isAudio).toList();
     final playlistIndex = playlist.indexWhere((file) => file.path == item.path);
-    _backgroundPlaybackActive = true;
-    await BackgroundMediaService.start(
+    final started = await BackgroundMediaService.start(
       path: item.path,
       title: item.name,
       position: controller.value.position,
@@ -200,6 +253,10 @@ class _ImmersiveMediaViewerScreenState
         'media_playback_notifications_enabled',
       ),
     );
+    // Playback is handed over only when the background service really started;
+    // otherwise the in-app player keeps running instead of going silent.
+    if (!started || !mounted) return;
+    _backgroundPlaybackActive = true;
     await controller.pause();
     await ScreenWake.disable();
   }
@@ -287,6 +344,23 @@ class _ImmersiveMediaViewerScreenState
         },
       );
     }
+    if (item.isAudio) {
+      return _AudioMediaPage(
+        item: item,
+        active: active,
+        controller: active ? _videoController : null,
+        initialized: active && _videoInitialized,
+        initializing: active && _videoInitializing,
+        failed: active && _videoFailed,
+        onTap: _onTapVideo,
+        onDoubleTap: _onDoubleTap,
+        onLongPress: _onLongPress,
+        onPointerDown: _onVideoPointerDown,
+        onPointerMove: _onVideoPointerMove,
+        onPointerUp: _onVideoPointerUp,
+        onPointerCancel: _onVideoPointerCancel,
+      );
+    }
     if (item.isVideo) {
       return _VideoMediaPage(
         item: item,
@@ -304,10 +378,16 @@ class _ImmersiveMediaViewerScreenState
         onPointerCancel: _onVideoPointerCancel,
       );
     }
-    return const SizedBox.shrink();
+    // Anything that is not recognised as image/video/audio (for example an item
+    // rebuilt from a notification payload without a media type) has to explain
+    // itself instead of rendering an empty, silent black page.
+    return const _UnsupportedPreview();
   }
 
   void _onPageChanged(int index) {
+    // An Auto-scroll slide is in flight: the pages the animation passes through
+    // are skipped so only the item the feed lands on starts a player.
+    if (_autoAdvanceTarget != null && index != _autoAdvanceTarget) return;
     if (index == _currentIndex) return;
     _controlsTimer?.cancel();
     setState(() {
@@ -322,7 +402,7 @@ class _ImmersiveMediaViewerScreenState
         _edgeActivePointers.clear();
       }
     });
-    if (_items[index].isVideo) {
+    if (_items[index].isVideo || _items[index].isAudio) {
       _initVideo(index);
       _maybeShowFirstTimeTour();
     } else {
@@ -336,7 +416,7 @@ class _ImmersiveMediaViewerScreenState
 
   void _initVideo(int index) {
     final item = _items[index];
-    if (!item.isVideo) return;
+    if (!item.isVideo && !item.isAudio) return;
     final old = _videoController;
     _videoController = null;
     setState(() {
@@ -346,23 +426,33 @@ class _ImmersiveMediaViewerScreenState
     });
     if (old != null) {
       if (_videoListener != null) old.removeListener(_videoListener!);
-      try {
-        old.pause();
-      } catch (_) {}
-      try {
-        old.dispose();
-      } catch (_) {}
+      // Smooth hand-off: when the previous item was still playing, fade its
+      // volume down instead of cutting it off abruptly.
+      if (_isPlaying(old)) {
+        _fadeOut(old);
+      } else {
+        try {
+          old.pause();
+        } catch (_) {}
+        try {
+          old.dispose();
+        } catch (_) {}
+      }
     }
 
+    final isVideo = item.isVideo;
     final controller = VideoPlayerController.file(File(item.path));
     _videoController = controller;
+    _playbackCompletionHandled = false;
     _videoListener = () {
       if (!mounted ||
           _videoController != controller ||
           !controller.value.isInitialized) {
         return;
       }
-      if (controller.value.isPlaying && !_backgroundPlaybackActive) {
+      if (controller.value.isPlaying && !_backgroundPlaybackActive && isVideo) {
+        // Only video keeps the screen awake; audio must be able to keep
+        // playing while the screen is off.
         ScreenWake.enable();
       } else {
         ScreenWake.disable();
@@ -370,8 +460,7 @@ class _ImmersiveMediaViewerScreenState
       if (controller.value.position >= controller.value.duration &&
           !controller.value.isPlaying &&
           !_backgroundPlaybackActive) {
-        controller.seekTo(Duration.zero);
-        controller.play();
+        _onPlaybackCompleted(controller, index, isVideo: isVideo);
       }
     };
     controller.addListener(_videoListener!);
@@ -382,7 +471,8 @@ class _ImmersiveMediaViewerScreenState
         } catch (_) {}
         return;
       }
-      if (_currentIndex != index || !_items[index].isVideo) {
+      if (_currentIndex != index ||
+          (!_items[index].isVideo && !_items[index].isAudio)) {
         try {
           controller.dispose();
         } catch (_) {}
@@ -396,6 +486,9 @@ class _ImmersiveMediaViewerScreenState
       try {
         controller.setPlaybackSpeed(speed);
       } catch (_) {}
+      // Fade in so switching between two playing items never produces a click
+      // or two tracks at full volume at the same time.
+      _fadeIn(controller);
       controller.play();
     }).catchError((Object error) {
       if (!mounted || _videoController != controller) return;
@@ -407,22 +500,137 @@ class _ImmersiveMediaViewerScreenState
     });
   }
 
-  void _disposeVideo() {
+  /// Disposes the active controller. [fade] keeps the smooth hand-off when
+  /// navigating between items but is skipped while the screen itself is being
+  /// torn down.
+  void _disposeVideo({bool fade = true}) {
     final c = _videoController;
     _videoController = null;
     _videoInitialized = false;
     _videoInitializing = false;
     _videoFailed = false;
+    _playbackCompletionHandled = false;
     if (c != null) {
       if (_videoListener != null) c.removeListener(_videoListener!);
-      try {
-        c.pause();
-      } catch (_) {}
-      try {
-        c.dispose();
-      } catch (_) {}
+      if (fade && _isPlaying(c)) {
+        _fadeOut(c);
+      } else {
+        try {
+          c.pause();
+        } catch (_) {}
+        try {
+          c.dispose();
+        } catch (_) {}
+      }
     }
     _videoListener = null;
+  }
+
+  bool _isPlaying(VideoPlayerController controller) {
+    try {
+      return controller.value.isInitialized && controller.value.isPlaying;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Gradually lowers [controller]'s volume, then releases it. Fire-and-forget
+  /// on purpose: navigation is never blocked by the fade.
+  Future<void> _fadeOut(VideoPlayerController controller) async {
+    try {
+      for (var step = _fadeSteps - 1; step >= 0; step--) {
+        await Future<void>.delayed(_audioFadeDuration ~/ _fadeSteps);
+        await controller.setVolume(step / _fadeSteps);
+      }
+    } catch (_) {
+      // Controller already released / platform error — ignore.
+    }
+    try {
+      await controller.pause();
+    } catch (_) {}
+    try {
+      await controller.dispose();
+    } catch (_) {}
+  }
+
+  /// Starts [controller] silent and ramps it up to full volume so two media
+  /// items are never heard at full volume at the same time.
+  Future<void> _fadeIn(VideoPlayerController controller) async {
+    try {
+      await controller.setVolume(0);
+      for (var step = 1; step <= _fadeSteps; step++) {
+        await Future<void>.delayed(_audioFadeDuration ~/ _fadeSteps);
+        if (_videoController != controller) return;
+        await controller.setVolume(step / _fadeSteps);
+      }
+    } catch (_) {
+      // Volume control is best effort; playback continues either way.
+    }
+  }
+
+  /// Called when a video/audio item reaches its end.
+  ///
+  /// With Auto-scroll on, the feed moves to the next compatible (video/audio)
+  /// item — images are never advanced automatically. With Auto-scroll off the
+  /// existing v1.0.8 behavior is preserved: videos repeat, audio stops (like
+  /// the standalone audio player).
+  void _onPlaybackCompleted(
+    VideoPlayerController controller,
+    int index, {
+    required bool isVideo,
+  }) {
+    if (_playbackCompletionHandled) return;
+    _playbackCompletionHandled = true;
+    Timer(const Duration(milliseconds: 400), () {
+      if (mounted) _playbackCompletionHandled = false;
+    });
+
+    if (_autoScrollEnabled) {
+      _advanceToNextPlayable();
+      return;
+    }
+    if (!isVideo) return;
+    try {
+      controller.seekTo(Duration.zero);
+      controller.play();
+    } catch (_) {}
+  }
+
+  /// Moves the feed on to the next video/audio item. Stops gracefully (no
+  /// crash, no looping back) once nothing compatible is left ahead.
+  ///
+  /// The transition is animated so an automatically advanced item slides in the
+  /// same way a manual swipe does instead of jumping. Pages the animation passes
+  /// through are skipped by [_onPageChanged] (see [_autoAdvanceTarget]), so only
+  /// the item the feed lands on creates a player.
+  void _advanceToNextPlayable() {
+    final next = _nextPlayableIndex();
+    if (next == null) return;
+    if (!_pageController.hasClients) return;
+    final distance = (next - _currentIndex).abs();
+    final durationMs = (_autoScrollPageDurationMs * distance)
+        .clamp(_autoScrollPageDurationMs, _autoScrollMaxDurationMs)
+        .toInt();
+    _autoAdvanceTarget = next;
+    _pageController
+        .animateToPage(
+          next,
+          duration: Duration(milliseconds: durationMs),
+          curve: Curves.easeInOutCubic,
+        )
+        .whenComplete(() {
+          // The animation is over either way: if it was interrupted (the user
+          // grabbed the feed mid-slide) no further page is expected, so normal
+          // page handling must resume.
+          _autoAdvanceTarget = null;
+        });
+  }
+
+  int? _nextPlayableIndex() {
+    for (var i = _currentIndex + 1; i < _items.length; i++) {
+      if (_items[i].isVideo || _items[i].isAudio) return i;
+    }
+    return null;
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -434,7 +642,7 @@ class _ImmersiveMediaViewerScreenState
     double safeBottom,
     FileItem currentItem,
   ) {
-    final isVideo = currentItem.isVideo;
+    final isPlayable = currentItem.isVideo || currentItem.isAudio;
     return Positioned.fill(
       child: IgnorePointer(
         ignoring: !_controlsVisible,
@@ -447,7 +655,7 @@ class _ImmersiveMediaViewerScreenState
                 _buildHeader(safeTop, currentItem),
                 _buildRightRail(),
               ],
-              if (isVideo) _buildVideoControls(safeBottom, currentItem),
+              if (isPlayable) _buildVideoControls(safeBottom, currentItem),
             ],
           ),
         ),
@@ -560,9 +768,10 @@ Widget _buildVideoControls(double safeBottom, FileItem item) {
                   tooltip: 'Player guide',
                   onPressed: _openTour,
                 ),
-                if (_cleanFullscreen ||
-                    (_videoController?.value.isInitialized == true &&
-                        _videoController!.value.aspectRatio > 1.0))
+                if (item.isVideo &&
+                    (_cleanFullscreen ||
+                        (_videoController?.value.isInitialized == true &&
+                            _videoController!.value.aspectRatio > 1.0)))
                   IconButton(
                     icon: Icon(
                       _cleanFullscreen
@@ -764,7 +973,7 @@ Widget _buildSpeedChip() {
               child: Center(child: _rescueFlashWidget(_rescueFlash!)),
             ),
           ),
-        if (_edgeBoostActive && item.isVideo)
+        if (_edgeBoostActive && (item.isVideo || item.isAudio))
           Positioned(
             top: MediaQuery.paddingOf(context).top + 64,
             left: 0,
@@ -943,11 +1152,25 @@ Widget _buildSpeedChip() {
     if (event.position.dx < _edgeBoostZoneWidth ||
         event.position.dx > width - _edgeBoostZoneWidth) {
       _edgeActivePointers.add(event.pointer);
-      _onEdgeBoost(true);
+      _scheduleEdgeBoost();
     }
   }
 
+  /// Waits the short confirmation delay before engaging the temporary speed.
+  /// A press that is released inside that window never activates the speed
+  /// mode, so ordinary taps near the edge stay ordinary taps.
+  void _scheduleEdgeBoost() {
+    _edgeBoostTimer?.cancel();
+    _edgeBoostTimer = Timer(_edgeBoostDelay, () {
+      if (!mounted || _edgeActivePointers.isEmpty) return;
+      _onEdgeBoost(true);
+    });
+  }
+
   void _onVideoPointerMove(PointerMoveEvent event) {
+    // Pinch-to-fullscreen is a video-only gesture (audio has no frame to
+    // enlarge), so nothing is tracked for audio items.
+    if (!_isCurrentVideo) return;
     if (_pinchPointers.length < 2) return;
     _pinchPointers[event.pointer] = event.position;
     if (_pinchPointers.length != 2) return;
@@ -970,7 +1193,11 @@ Widget _buildSpeedChip() {
 
   void _onVideoPointerUp(PointerUpEvent event) {
     if (_edgeActivePointers.remove(event.pointer)) {
-      if (_edgeActivePointers.isEmpty) _onEdgeBoost(false);
+      if (_edgeActivePointers.isEmpty) {
+        // Released before the confirmation delay → never activate the speed.
+        _edgeBoostTimer?.cancel();
+        _onEdgeBoost(false);
+      }
     }
     _pinchPointers.remove(event.pointer);
     _pinchAccum = 0;
@@ -982,7 +1209,10 @@ Widget _buildSpeedChip() {
 
   void _onVideoPointerCancel(PointerCancelEvent event) {
     if (_edgeActivePointers.remove(event.pointer)) {
-      if (_edgeActivePointers.isEmpty) _onEdgeBoost(false);
+      if (_edgeActivePointers.isEmpty) {
+        _edgeBoostTimer?.cancel();
+        _onEdgeBoost(false);
+      }
     }
     _pinchPointers.remove(event.pointer);
     _pinchAccum = 0;
@@ -993,10 +1223,12 @@ Widget _buildSpeedChip() {
   }
 
   void _onEdgeBoost(bool active) {
-    if (!_isCurrentVideo) return;
+    if (!_isCurrentPlayable) return;
     if (active) {
       if (_edgeBoostActive) return;
       setState(() => _edgeBoostActive = true);
+      // Soft confirmation that the temporary speed mode engaged.
+      HapticsService.playbackSpeed();
       final c = _videoController;
       if (c != null && _videoInitialized) {
         try {
@@ -1193,7 +1425,8 @@ Future<void> _showAfterRescueDialog(
     final nextIndex = _currentIndex.clamp(0, _items.length - 1);
     _disposeVideo();
     setState(() => _currentIndex = nextIndex);
-    if (_items[nextIndex].isVideo) {
+    final nextItem = _items[nextIndex];
+    if (nextItem.isVideo || nextItem.isAudio) {
       _initVideo(nextIndex);
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1466,6 +1699,8 @@ Future<void> _showAfterRescueDialog(
     // press must NOT open the actions menu — holding an edge only boosts the
     // playback speed until the finger is released.
     if (_edgeBoostActive) return;
+    // Confirmation that the long-press gesture registered.
+    HapticsService.buttonPress();
     await _showMediaActions();
   }
 
@@ -1474,46 +1709,64 @@ Future<void> _showAfterRescueDialog(
     final action = await showModalBottomSheet<_MediaAction>(
       context: context,
       backgroundColor: Theme.of(context).colorScheme.surface,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 14, 20, 4),
-              child: Text(
-                _truncateFilename(item.name),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(ctx).textTheme.titleSmall,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 14, 20, 4),
+                child: Text(
+                  _truncateFilename(item.name),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(ctx).textTheme.titleSmall,
+                ),
               ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.download_for_offline_outlined),
-              title: const Text('Rescue'),
-              subtitle: const Text('Copy to rescue destination'),
-              onTap: () => Navigator.of(ctx).pop(_MediaAction.rescue),
-            ),
-            ListTile(
-              leading: const Icon(Icons.info_outline),
-              title: const Text('File Information'),
-              onTap: () => Navigator.of(ctx).pop(_MediaAction.info),
-            ),
-            ListTile(
-              leading: const Icon(Icons.share_outlined),
-              title: const Text('Share'),
-              onTap: () => Navigator.of(ctx).pop(_MediaAction.share),
-            ),
-            ListTile(
-              leading: const Icon(Icons.folder_open),
-              title: const Text('Open File Location'),
-              onTap: () => Navigator.of(ctx).pop(_MediaAction.location),
-            ),
-            ListTile(
-              leading: const Icon(Icons.delete_outline, color: Colors.red),
-              title: const Text('Delete', style: TextStyle(color: Colors.red)),
-              onTap: () => Navigator.of(ctx).pop(_MediaAction.delete),
-            ),
-          ],
+              // Auto-scroll toggle (v1.0.9). It only affects videos and audio:
+              // images are never advanced automatically.
+              SwitchListTile(
+                secondary: const Icon(Icons.autorenew),
+                title: const Text('Auto-scroll'),
+                subtitle: const Text(
+                  'Play the next video or audio automatically',
+                ),
+                value: _autoScrollEnabled,
+                onChanged: (value) {
+                  setSheetState(() => _autoScrollEnabled = value);
+                  if (mounted) setState(() => _autoScrollEnabled = value);
+                  HapticsService.selection();
+                },
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.download_for_offline_outlined),
+                title: const Text('Rescue'),
+                subtitle: const Text('Copy to rescue destination'),
+                onTap: () => Navigator.of(ctx).pop(_MediaAction.rescue),
+              ),
+              ListTile(
+                leading: const Icon(Icons.info_outline),
+                title: const Text('File Information'),
+                onTap: () => Navigator.of(ctx).pop(_MediaAction.info),
+              ),
+              ListTile(
+                leading: const Icon(Icons.share_outlined),
+                title: const Text('Share'),
+                onTap: () => Navigator.of(ctx).pop(_MediaAction.share),
+              ),
+              ListTile(
+                leading: const Icon(Icons.folder_open),
+                title: const Text('Open File Location'),
+                onTap: () => Navigator.of(ctx).pop(_MediaAction.location),
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete_outline, color: Colors.red),
+                title: const Text('Delete', style: TextStyle(color: Colors.red)),
+                onTap: () => Navigator.of(ctx).pop(_MediaAction.delete),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1858,3 +2111,173 @@ class _VideoMediaPage extends StatelessWidget {
     );
   }
 }
+
+/// Immersive page for audio files.
+///
+/// Audio reuses the very same player controller as video (the existing
+/// `video_player` based audio playback), so play/pause, seeking, playback
+/// speed, background hand-off and Auto-scroll behave identically. This page
+/// only replaces the video frame with artwork and a live progress read-out.
+class _AudioMediaPage extends StatelessWidget {
+  final FileItem item;
+  final bool active;
+  final VideoPlayerController? controller;
+  final bool initialized;
+  final bool initializing;
+  final bool failed;
+  final VoidCallback onTap;
+  final VoidCallback onDoubleTap;
+  final VoidCallback onLongPress;
+  final void Function(PointerDownEvent) onPointerDown;
+  final void Function(PointerMoveEvent) onPointerMove;
+  final void Function(PointerUpEvent) onPointerUp;
+  final void Function(PointerCancelEvent) onPointerCancel;
+
+  const _AudioMediaPage({
+    required this.item,
+    required this.active,
+    required this.controller,
+    required this.initialized,
+    required this.initializing,
+    required this.failed,
+    required this.onTap,
+    required this.onDoubleTap,
+    required this.onLongPress,
+    required this.onPointerDown,
+    required this.onPointerMove,
+    required this.onPointerUp,
+    required this.onPointerCancel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final Widget content;
+    if (failed) {
+      content = const _UnsupportedPreview();
+    } else {
+      content = Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(24),
+                child: ThumbnailImage(
+                  item: item,
+                  width: 190,
+                  height: 190,
+                  borderRadius: 24,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                item.name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Audio',
+                style: TextStyle(color: Colors.white54, fontSize: 12),
+              ),
+              const SizedBox(height: 18),
+              _buildProgress(),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onTap: onTap,
+      onDoubleTap: onDoubleTap,
+      onLongPress: onLongPress,
+      child: Container(
+        color: Colors.black,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            content,
+            // Raw pointer observer: side hold → temporary 2× speed.
+            Listener(
+              behavior: HitTestBehavior.translucent,
+              onPointerDown: onPointerDown,
+              onPointerMove: onPointerMove,
+              onPointerUp: onPointerUp,
+              onPointerCancel: onPointerCancel,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProgress() {
+    final c = controller;
+    if (!active || !initialized || c == null) {
+      return SizedBox(
+        height: 40,
+        child: Center(
+          child: active && initializing
+              ? const CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2,
+                )
+              : const Icon(
+                  Icons.music_note_rounded,
+                  color: Colors.white24,
+                  size: 34,
+                ),
+        ),
+      );
+    }
+    return ValueListenableBuilder<VideoPlayerValue>(
+      valueListenable: c,
+      builder: (context, value, _) {
+        final duration = value.duration;
+        final position = value.position > duration ? duration : value.position;
+        final progress = duration.inMilliseconds > 0
+            ? position.inMilliseconds / duration.inMilliseconds
+            : 0.0;
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  value.isPlaying
+                      ? Icons.pause_circle_filled
+                      : Icons.play_circle_filled,
+                  color: Colors.white70,
+                  size: 26,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: LinearProgressIndicator(
+                    value: progress.clamp(0.0, 1.0),
+                    backgroundColor: Colors.white24,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '${_formatAudioClock(position)} / ${_formatAudioClock(duration)}',
+              style: const TextStyle(color: Colors.white70, fontSize: 12),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -12,6 +13,8 @@ import '../../providers/scanner_provider.dart';
 import '../../providers/storage_provider.dart';
 import '../../services/notification_service.dart';
 import '../../services/background_media_service.dart';
+import '../../services/haptics_service.dart';
+import '../../services/memory_service.dart';
 import '../../widgets/app_card.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -105,9 +108,22 @@ class SettingsScreen extends ConsumerWidget {
           const AppCard(child: _UpdateNotificationsTile()),
           const SizedBox(height: AppSpacing.xl),
 
+          // Debug-only tools. Everything here is compiled out of release builds.
+          if (kDebugMode) ...[
+            const _SectionHeader(label: 'Developer'),
+            const SizedBox(height: AppSpacing.sm),
+            const AppCard(child: _DebugToolsSection()),
+            const SizedBox(height: AppSpacing.xl),
+          ],
+
           const _SectionHeader(label: 'Background Media'),
           const SizedBox(height: AppSpacing.sm),
           const AppCard(child: _BackgroundMediaSettings()),
+          const SizedBox(height: AppSpacing.xl),
+
+          const _SectionHeader(label: 'Haptics'),
+          const SizedBox(height: AppSpacing.sm),
+          const AppCard(child: _HapticsSettings()),
           const SizedBox(height: AppSpacing.xl),
 
           const _SectionHeader(label: 'Specialized Discovery'),
@@ -297,7 +313,11 @@ class _RescueDestinationSection extends ConsumerWidget {
           title: const Text('Single folder for all rescues'),
           subtitle: const Text('Save all rescued files into one directory'),
           value: settings.singleDestination,
-          onChanged: notifier.setSingleDestination,
+          onChanged: (value) {
+            // Switches do not create an ink splash → feedback fired here.
+            HapticsService.selection();
+            notifier.setSingleDestination(value);
+          },
         ),
         const Divider(),
         ...tiles,
@@ -513,6 +533,8 @@ class _BackgroundMediaSettingsState extends State<_BackgroundMediaSettings> {
   }
 
   Future<void> _set(String key, bool value, void Function() update) async {
+    // Switches do not create an ink splash, so their feedback is fired here.
+    HapticsService.selection();
     await BackgroundMediaService.setSetting(key, value);
     if (mounted) setState(update);
   }
@@ -572,6 +594,162 @@ class _BackgroundMediaSettingsState extends State<_BackgroundMediaSettings> {
   }
 }
 
+class _HapticsSettings extends StatelessWidget {
+  const _HapticsSettings();
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<HapticsState>(
+      valueListenable: HapticsService.state,
+      builder: (context, value, _) {
+        return Column(
+          children: [
+            SwitchListTile(
+              secondary: const HugeIcon(icon: HugeIcons.strokeRoundedCursorHold01),
+              title: const Text('Haptic feedback'),
+              subtitle: const Text(
+                'Subtle vibration for buttons and playback-speed',
+              ),
+              value: value.enabled,
+              onChanged: (enabled) {
+                HapticsService.setEnabled(enabled);
+                if (enabled) HapticsService.buttonPress();
+              },
+            ),
+            const Divider(),
+            for (final intensity in HapticIntensity.values) ...[
+              _HapticIntensityTile(
+                label: switch (intensity) {
+                  HapticIntensity.light => 'Light',
+                  HapticIntensity.medium => 'Medium',
+                  HapticIntensity.strong => 'Strong',
+                },
+                intensity: intensity,
+                current: value.intensity,
+                enabled: value.enabled,
+              ),
+              if (intensity != HapticIntensity.values.last) const Divider(),
+            ],
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _HapticIntensityTile extends StatelessWidget {
+  final String label;
+  final HapticIntensity intensity;
+  final HapticIntensity current;
+  final bool enabled;
+
+  const _HapticIntensityTile({
+    required this.label,
+    required this.intensity,
+    required this.current,
+    required this.enabled,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isSelected = current == intensity;
+    return ListTile(
+      enabled: enabled,
+      title: Text(
+        '$label intensity',
+        style: const TextStyle(fontWeight: FontWeight.w600),
+      ),
+      leading: Icon(
+        isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+        color: isSelected ? Theme.of(context).colorScheme.primary : null,
+      ),
+      onTap: enabled
+          ? () {
+              HapticsService.setIntensity(intensity);
+              HapticsService.buttonPress();
+            }
+          : null,
+    );
+  }
+}
+
+/// Debug-only developer helpers (compiled out of release builds).
+///
+/// The Memory notification cannot be triggered on demand — it only appears on
+/// the anniversary of a cached media file — so this tile was added to verify the
+/// whole pipeline: it picks a media item from the Memory cache automatically and
+/// sends its notification straight away.
+class _DebugToolsSection extends StatefulWidget {
+  const _DebugToolsSection();
+
+  @override
+  State<_DebugToolsSection> createState() => _DebugToolsSectionState();
+}
+
+class _DebugToolsSectionState extends State<_DebugToolsSection> {
+  bool _sending = false;
+
+  Future<void> _sendTestMemoryNotification() async {
+    if (_sending) return;
+    setState(() => _sending = true);
+
+    final permitted = await NotificationService.areNotificationsEnabled();
+    final entry = permitted
+        ? await MemoryService.sendTestNotification()
+        : null;
+
+    if (!mounted) return;
+    setState(() => _sending = false);
+
+    final message = !permitted
+        ? 'Notifications are disabled for MediaRescue in system settings.'
+        : entry == null
+        ? 'Nothing could be sent — open Hidden Media once so the Memory cache '
+              'has media to notify about.'
+        : 'Test Memory notification sent for a random pick: "${entry.name}".';
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: _sending
+              ? const SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const HugeIcon(
+                  icon: HugeIcons.strokeRoundedNotification01,
+                  color: AppColors.primary,
+                ),
+          title: const Text('Send test Memory notification'),
+          subtitle: const Text(
+            'Random cached media — never the same pick twice in a row',
+          ),
+          onTap: _sending ? null : _sendTestMemoryNotification,
+        ),
+        const Divider(),
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: const HugeIcon(
+            icon: HugeIcons.strokeRoundedLocker01,
+            color: AppColors.secondary,
+          ),
+          title: const Text('Memory cache'),
+          subtitle: const Text(
+            'Inspect the metadata cached for Memory notifications',
+          ),
+          onTap: () => context.push('/memory-cache'),
+        ),
+      ],
+    );
+  }
+}
+
 class _UpdateNotificationsTileState extends State<_UpdateNotificationsTile> {
   bool? _enabled;
 
@@ -594,6 +772,8 @@ class _UpdateNotificationsTileState extends State<_UpdateNotificationsTile> {
   }
 
   Future<void> _onChanged(bool value) async {
+    // Switches do not create an ink splash, so their feedback is fired here.
+    HapticsService.selection();
     if (value) {
       final permitted = await NotificationService.areNotificationsEnabled();
       if (!permitted) {
