@@ -189,6 +189,10 @@ You can download the latest official APK directly from GitHub Releases.
 
 > **Tip:** Always verify the APK checksum listed in the release notes when available to confirm the integrity of the downloaded file.
 
+### From Orion Store
+
+[![Get it on Orion Store](https://raw.githubusercontent.com/RookieEnough/Orion-Store/refs/heads/main/assets/orion-badge.png)](https://rookieenough.github.io/Orion-Data/redirect.html?id=mediarescue)
+
 ### From the Official Website
 
 The latest MediaRescue APK is also available from the official website:
