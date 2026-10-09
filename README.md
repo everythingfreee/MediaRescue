@@ -176,7 +176,7 @@ MediaRescue is available through multiple distribution channels. Choose whicheve
 
 MediaRescue is publicly available on Google Play as a free, open-source Android application.
 
-[**Download MediaRescue from Google Play**](https://play.google.com/store/apps/details?id=com.shaheer.mediarescue.mediarescue)
+[![Get it on Play Store](./playstore.svg)](https://play.google.com/store/apps/details?id=com.shaheer.mediarescue.mediarescue)
 
 ### From GitHub Releases
 
@@ -197,13 +197,19 @@ You can download the latest official APK directly from GitHub Releases.
 
 The latest MediaRescue APK is also available from the official website:
 
-[**mediarescue.apk.com**](https://mediarescue.apk.com)
+[**Official Website**](https://mediarescue.apk.com)
 
 ### From APKPure
 
-MediaRescue is also available through APKPure:
+[![Get it on APKPure](https://img.icons8.com/?size=200&id=Bzg1ypKokEGa&format=png&color=000000)](https://apkpure.com/p/com.shaheer.mediarescue.mediarescue)
 
-[**Download MediaRescue on APKPure**](https://apkpure.com/p/com.shaheer.mediarescue.mediarescue)
+### From Softonic
+
+[![Get it on Softonic](https://assets.sftcdn.net/public/046876.svg)](https://mediarescue.en.softonic.com/android)
+
+### From Uptodown
+
+[![Download MediaRescue](https://stc.utdstc.com/img/mediakit/download-gio-big-b.png)](https://mediarescue.en.uptodown.com/android)
 
 ### Distribution Status
 
@@ -212,9 +218,12 @@ MediaRescue is also available through APKPure:
 | Google Play      | ✅ Live         |
 | Official Website | ✅ Live         |
 | GitHub Releases  | ✅ Live         |
+| Orion Store      | ✅ Live         |
 | APKPure          | ✅ Live         |
-| Aptoide          | 🔜 Coming soon |
-| Softonic         | 🔜 Coming soon |
+| Aptoide          | 🔜 Coming soon  |
+| Softonic         | ✅ Live         |
+| Uptodown         | ✅ Live         |
+
 
 ---
 
