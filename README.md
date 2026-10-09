@@ -235,7 +235,7 @@ Want to build the app yourself? Great — it's fully open source. Follow the ste
 
 | Tool | Version | Link |
 |---|---|---|
-| **Flutter SDK** | 3.x (with Dart 3.x) | [flutter.dev](https://flutter.dev) |
+| **Flutter SDK** | 3.47.6 (with Dart 3.13.5) | [flutter.dev](https://flutter.dev) |
 | **Android SDK** | API 21+ (compile SDK 35) | [developer.android.com](https://developer.android.com/studio) |
 | **Android Studio** | Latest (recommended) | [Android Studio](https://developer.android.com/studio) |
 | **Java** | 17+ (bundled with Android Studio) | — |
